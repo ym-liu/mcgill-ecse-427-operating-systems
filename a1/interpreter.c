@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-// #include <sys/stat.h> // these could be useful?
+#include <sys/stat.h>
 #include "shellmemory.h"
 #include "shell.h"
 
@@ -38,7 +38,7 @@ int print(char *var);
 int run(char *script);
 int echo(char *token_string);
 int my_ls();
-int my_mkdir();
+int my_mkdir(char *dirname);
 int my_touch();
 int my_cd(char *dirname);
 int my_cat();
@@ -121,6 +121,13 @@ int interpreter(char *command_args[], int args_size)
 			return badcommand();
 		return my_ls();
 	}
+	else if (strcmp(command_args[0], "my_mkdir") == 0)
+	{
+		// my_mkdir
+		if (args_size != 2)
+			return badcommand();
+		return my_mkdir(command_args[1]);
+	}
 	else if (strcmp(command_args[0], "my_cd") == 0)
 	{
 		// my_cd
@@ -199,20 +206,6 @@ int run(char *script)
 	return errCode;
 }
 
-int my_ls()
-{
-	return system("ls");
-}
-
-int my_cd(char *dirname)
-{
-	if (chdir(dirname) == 0)
-	{
-		return 0;
-	}
-	return badcommandIncorrectUsage("my_cd");
-}
-
 int echo(char *token_string)
 {
 	// if first char is $, then echo value of var
@@ -236,4 +229,25 @@ int echo(char *token_string)
 	}
 
 	return 0;
+}
+
+int my_ls()
+{
+	return system("ls");
+}
+
+int my_mkdir(char *dirname)
+{
+	if (mkdir(dirname, 0777) == 0)
+		return 0;
+
+	return badcommandIncorrectUsage("my_mkdir");
+}
+
+int my_cd(char *dirname)
+{
+	if (chdir(dirname) == 0)
+		return 0;
+
+	return badcommandIncorrectUsage("my_cd");
 }
