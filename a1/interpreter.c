@@ -293,7 +293,6 @@ int my_cat(char *filename)
 		printf("%c", content_c); // print char
 		content_c = fgetc(p);	 // get next char
 	}
-	printf("\n"); // new line for next command
 
 	// close file
 	fclose(p);
