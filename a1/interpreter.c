@@ -39,7 +39,7 @@ int run(char *script);
 int echo(char *token_string);
 int my_ls();
 int my_mkdir(char *dirname);
-int my_touch();
+int my_touch(char *filename);
 int my_cd(char *dirname);
 int my_cat();
 int badcommandFileDoesNotExist();
@@ -127,6 +127,13 @@ int interpreter(char *command_args[], int args_size)
 		if (args_size != 2)
 			return badcommand();
 		return my_mkdir(command_args[1]);
+	}
+	else if (strcmp(command_args[0], "my_touch") == 0)
+	{
+		// my_touch
+		if (args_size != 2)
+			return badcommand();
+		return my_touch(command_args[1]);
 	}
 	else if (strcmp(command_args[0], "my_cd") == 0)
 	{
@@ -242,6 +249,18 @@ int my_mkdir(char *dirname)
 		return 0;
 
 	return badcommandIncorrectUsage("my_mkdir");
+}
+
+int my_touch(char *filename)
+{
+	FILE *p; // pointer to file we want to create
+
+	p = fopen(filename, "w"); // create empty file for writing
+	if (p == NULL)
+		return badcommandIncorrectUsage("my_touch");
+
+	fclose(p);
+	return 0;
 }
 
 int my_cd(char *dirname)
