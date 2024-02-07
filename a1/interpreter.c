@@ -41,7 +41,7 @@ int my_ls();
 int my_mkdir(char *dirname);
 int my_touch(char *filename);
 int my_cd(char *dirname);
-int my_cat();
+int my_cat(char *filename);
 int badcommandFileDoesNotExist();
 
 // Interpret commands and their arguments
@@ -141,6 +141,13 @@ int interpreter(char *command_args[], int args_size)
 		if (args_size != 2)
 			return badcommand();
 		return my_cd(command_args[1]);
+	}
+	else if (strcmp(command_args[0], "my_cat") == 0)
+	{
+		// my_cat
+		if (args_size != 2)
+			return badcommand();
+		return my_cat(command_args[1]);
 	}
 	else
 		return badcommand();
@@ -269,4 +276,26 @@ int my_cd(char *dirname)
 		return 0;
 
 	return badcommandIncorrectUsage("my_cd");
+}
+
+int my_cat(char *filename)
+{
+	// open file
+	FILE *p;				  // pointer to file we want to open
+	p = fopen(filename, "r"); // open file for reading
+	if (p == NULL)			  // check if file exists
+		return badcommandIncorrectUsage("my_cat");
+
+	// print file contents
+	char content_c = fgetc(p); // character in file
+	while (content_c != EOF)   // iterate until end of file
+	{
+		printf("%c", content_c); // print char
+		content_c = fgetc(p);	 // get next char
+	}
+	printf("\n"); // new line for next command
+
+	// close file
+	fclose(p);
+	return 0;
 }
