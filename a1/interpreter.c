@@ -6,12 +6,22 @@
 #include "shellmemory.h"
 #include "shell.h"
 
-int MAX_ARGS_SIZE = 3;
+int MAX_ARGS_SIZE = 20;
 
 int badcommand()
 {
 	printf("%s\n", "Unknown Command");
 	return 1;
+}
+
+// For when command is called incorrectly
+// Prints "Bad Command: <command>" with error code 2
+// param -- command: name of command
+// return -- error code 2
+int badcommandIncorrectUsage(char *command)
+{
+	printf("Bad command: %s\n", command);
+	return 2;
 }
 
 // For run command only
@@ -30,7 +40,7 @@ int echo();
 int my_ls();
 int my_mkdir();
 int my_touch();
-int my_cd(char *dir);
+int my_cd(char *dirname);
 int my_cat();
 int badcommandFileDoesNotExist();
 
@@ -66,9 +76,22 @@ int interpreter(char *command_args[], int args_size)
 	else if (strcmp(command_args[0], "set") == 0)
 	{
 		// set
-		if (args_size != 3)
-			return badcommand();
-		return set(command_args[1], command_args[2]);
+		if (args_size < 3 || args_size > 7)
+			return badcommandIncorrectUsage("set");
+
+		// iterate through the tokens
+		char *val = (char *)malloc(sizeof(char) * 101 * (args_size - 2)); // each token no larger than 101 char
+		strcpy(val, command_args[2]);									  // first token
+		for (int i = 3; i < args_size; i++)								  // second token to last token
+		{
+			char *space = " ";
+			strcat(val, space);			  // separate tokens with a space
+			strcat(val, command_args[i]); // concat new token
+		}
+
+		int errCode = set(command_args[1], val);
+		free(val);
+		return errCode;
 	}
 	else if (strcmp(command_args[0], "print") == 0)
 	{
@@ -174,11 +197,11 @@ int my_ls()
 	return system("ls");
 }
 
-int my_cd(char *dir)
+int my_cd(char *dirname)
 {
-	if (chdir(dir) == 0)
+	if (chdir(dirname) == 0)
 	{
 		return 0;
 	}
-	return badcommand();
+	return badcommandIncorrectUsage("my_cd");
 }
