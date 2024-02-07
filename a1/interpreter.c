@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-// #include <unistd.h>
+#include <unistd.h>
 // #include <sys/stat.h> // these could be useful?
 #include "shellmemory.h"
 #include "shell.h"
@@ -30,7 +30,7 @@ int echo();
 int my_ls();
 int my_mkdir();
 int my_touch();
-int my_cd();
+int my_cd(char *dir);
 int my_cat();
 int badcommandFileDoesNotExist();
 
@@ -90,6 +90,13 @@ int interpreter(char *command_args[], int args_size)
 		if (args_size != 1)
 			return badcommand();
 		return my_ls();
+	}
+	else if (strcmp(command_args[0], "my_cd") == 0)
+	{
+		// my_cd
+		if (args_size != 2)
+			return badcommand();
+		return my_cd(command_args[1]);
 	}
 	else
 		return badcommand();
@@ -165,4 +172,13 @@ int run(char *script)
 int my_ls()
 {
 	return system("ls");
+}
+
+int my_cd(char *dir)
+{
+	if (chdir(dir) == 0)
+	{
+		return 0;
+	}
+	return badcommand();
 }
