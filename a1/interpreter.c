@@ -36,7 +36,7 @@ int quit();
 int set(char *var, char *value);
 int print(char *var);
 int run(char *script);
-int echo();
+int echo(char *token_string);
 int my_ls();
 int my_mkdir();
 int my_touch();
@@ -106,6 +106,13 @@ int interpreter(char *command_args[], int args_size)
 		if (args_size != 2)
 			return badcommand();
 		return run(command_args[1]);
+	}
+	else if (strcmp(command_args[0], "echo") == 0)
+	{
+		// echo
+		if (args_size != 2)
+			return badcommand();
+		return echo(command_args[1]);
 	}
 	else if (strcmp(command_args[0], "my_ls") == 0)
 	{
@@ -204,4 +211,29 @@ int my_cd(char *dirname)
 		return 0;
 	}
 	return badcommandIncorrectUsage("my_cd");
+}
+
+int echo(char *token_string)
+{
+	// if first char is $, then echo value of var
+	if (token_string[0] == '$')
+	{
+		// get value of var
+		char *value = (char *)malloc(sizeof(char) * 101); // no larger than 101 char
+		strcpy(value, mem_get_value(token_string + 1));	  // cut the "$" and get value
+
+		// print value
+		if (strcmp(value, "Variable does not exist") == 0) // if "Variable does not exist", then empty line
+			strcpy(value, "");
+		printf("%s\n", value);
+
+		free(value);
+	}
+	// if first char is not $, then echo value directly
+	else
+	{
+		printf("%s\n", token_string);
+	}
+
+	return 0;
 }
