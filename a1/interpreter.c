@@ -402,10 +402,10 @@ int my_ls()
 
 int my_mkdir(char *dirname)
 {
-	if (mkdir(dirname, 0777) == 0)
-		return 0;
+	if (mkdir(dirname, 0777) != 0)
+		return badcommandIncorrectUsage("my_mkdir");
 
-	return badcommandIncorrectUsage("my_mkdir");
+	return 0;
 }
 
 int my_touch(char *filename)
@@ -422,10 +422,10 @@ int my_touch(char *filename)
 
 int my_cd(char *dirname)
 {
-	if (chdir(dirname) == 0)
-		return 0;
+	if (chdir(dirname) != 0)
+		return badcommandIncorrectUsage("my_cd");
 
-	return badcommandIncorrectUsage("my_cd");
+	return 0;
 }
 
 int my_cat(char *filename)
