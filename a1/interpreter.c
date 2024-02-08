@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -148,6 +149,155 @@ int interpreter(char *command_args[], int args_size)
 		if (args_size != 2)
 			return badcommand();
 		return my_cat(command_args[1]);
+	}
+	else if (strcmp(command_args[0], "if") == 0)
+	{
+		// my_if
+		// ensure enough args for "if identifier1 op identifier2 then command"
+		if (args_size < 6)
+			return badcommandIncorrectUsage("too few arguments in if-conditional");
+
+		// second arg and fourth arg must be identifiers
+		// get value of identifiers
+		char *identifier1 = (char *)malloc(sizeof(char) * 101); // no larger than 101 char
+		char *identifier2 = (char *)malloc(sizeof(char) * 101); // no larger than 101 char
+
+		if (command_args[1][0] == '$') // if first char of identifier1 is $
+		{
+			strcpy(identifier1, mem_get_value(command_args[1] + 1)); // cut the "$" and get value
+			if (strcmp(identifier1, "Variable does not exist") == 0) // if "Variable does not exist", then empty string
+				strcpy(identifier1, "");
+		}
+		else
+			strcpy(identifier1, command_args[1]); // else copy arg into identifier1 directly
+
+		if (command_args[3][0] == '$') // if first char of identifier2 is $
+		{
+			strcpy(identifier2, mem_get_value(command_args[3] + 1)); // cut the "$" and get value
+			if (strcmp(identifier2, "Variable does not exist") == 0) // if "Variable does not exist", then empty string
+				strcpy(identifier2, "");
+		}
+		else
+			strcpy(identifier2, command_args[3]); // else copy arg into identifier2 directly
+
+		// third arg must be op
+		// get bool for (identifier1 op identifier2)
+		bool condition = true;
+		if (strcmp(command_args[2], "==") == 0)
+			condition = (strcmp(identifier1, identifier2) == 0);
+		else if (strcmp(command_args[2], "!=") == 0)
+			condition = (strcmp(identifier1, identifier2) != 0);
+		else
+		{
+			free(identifier1);
+			free(identifier2);
+			return badcommandIncorrectUsage("invalid operator in if-conditional");
+		}
+
+		// fifth arg must be then
+		// ensure it is indeed "then"
+		if (strcmp(command_args[4], "then") != 0)
+		{
+			free(identifier1);
+			free(identifier2);
+			return badcommandIncorrectUsage("cannot find 'then' in if-conditional");
+		}
+
+		// sixth argument and beyond are commands
+		// initialize command1
+		extern int MAX_USER_INPUT;
+		char *command1 = (char *)malloc(sizeof(char) * (MAX_USER_INPUT)); // no larger than MAX_USER_INPUT
+		if (strcmp(command_args[5], "else") == 0 || strcmp(command_args[5], "fi") == 0 || strcmp(command_args[5], "\n") == 0)
+		{ // ensure command1 is not empty
+			printf("Empty if clause\n");
+			free(identifier1);
+			free(identifier2);
+			free(command1);
+			return 2;
+		}
+		strcpy(command1, command_args[5]); // first token of command1
+
+		// iterate through tokens until else or fi or newline
+		int i = 6;
+		while (strcmp(command_args[i], "else") != 0 && strcmp(command_args[i], "fi") != 0 && strcmp(command_args[i], "\n") != 0)
+		{
+			if (i >= args_size) // prevent array index out of bounds
+				break;
+
+			char *space = " ";
+			strcat(command1, space);		   // separate tokens with a space
+			strcat(command1, command_args[i]); // concat new token
+			i++;
+		}
+
+		// initialize command2
+		char *command2 = (char *)malloc(sizeof(char) * MAX_USER_INPUT); // no larger than MAX_USER_INPUT
+
+		// if there is an "else", then get command2
+		if (i < args_size && strcmp(command_args[i], "else") == 0)
+		{
+			i++;
+			strcpy(command2, command_args[i]); // first token of command2
+
+			// iterate through tokens until fi or newline
+			i++;
+			while (strcmp(command_args[i], "fi") != 0 && strcmp(command_args[i], "\n") != 0)
+			{
+				if (i >= args_size) // prevent array index out of bounds
+					break;
+
+				char *space = " ";
+				strcat(command2, space);		   // separate tokens with a space
+				strcat(command2, command_args[i]); // concat new token
+				i++;
+			}
+		}
+		// if there is no "else", then command2 = ""
+		else if (i < args_size && (strcmp(command_args[i], "fi") == 0 || strcmp(command_args[i], "\n") == 0))
+			strcpy(command2, "");
+		// if there is no else nor fi nor newline
+		else
+		{
+			free(identifier1);
+			free(identifier2);
+			free(command1);
+			free(command2);
+			return badcommandIncorrectUsage("cannot find 'fi' in if-conditional");
+		}
+
+		// evaluation conditional
+		// if condition == true, execute command1
+		// if condition == false, execute command2
+		int errCode = 0;
+		if (condition)
+		{
+			// if empty command, then "Empty if clause"
+			if (strcmp(command1, "") == 0)
+			{
+				printf("%s\n", "Empty if clause");
+				errCode = 2;
+			}
+			// else execute command
+			else
+				errCode = parseInput(command1); // calls interpreter()
+		}
+		else
+		{
+			if (strcmp(command2, "") == 0) // if empty command, then "Empty if clause"
+			{
+				printf("%s\n", "Empty if clause");
+				errCode = 2;
+			}
+			else								// else execute command
+				errCode = parseInput(command2); // calls interpreter()
+		}
+
+		// return errCode
+		free(identifier1);
+		free(identifier2);
+		free(command1);
+		free(command2);
+		return errCode;
 	}
 	else
 		return badcommand();
