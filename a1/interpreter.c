@@ -112,42 +112,42 @@ int interpreter(char *command_args[], int args_size)
 	{
 		// echo
 		if (args_size != 2)
-			return badcommand();
+			return badcommandIncorrectUsage("echo");
 		return echo(command_args[1]);
 	}
 	else if (strcmp(command_args[0], "my_ls") == 0)
 	{
 		// my_ls
 		if (args_size != 1)
-			return badcommand();
+			return badcommandIncorrectUsage("my_ls");
 		return my_ls();
 	}
 	else if (strcmp(command_args[0], "my_mkdir") == 0)
 	{
 		// my_mkdir
 		if (args_size != 2)
-			return badcommand();
+			return badcommandIncorrectUsage("my_mkdir");
 		return my_mkdir(command_args[1]);
 	}
 	else if (strcmp(command_args[0], "my_touch") == 0)
 	{
 		// my_touch
 		if (args_size != 2)
-			return badcommand();
+			return badcommandIncorrectUsage("my_touch");
 		return my_touch(command_args[1]);
 	}
 	else if (strcmp(command_args[0], "my_cd") == 0)
 	{
 		// my_cd
 		if (args_size != 2)
-			return badcommand();
+			return badcommandIncorrectUsage("my_cd");
 		return my_cd(command_args[1]);
 	}
 	else if (strcmp(command_args[0], "my_cat") == 0)
 	{
 		// my_cat
 		if (args_size != 2)
-			return badcommand();
+			return badcommandIncorrectUsage("my_cat");
 		return my_cat(command_args[1]);
 	}
 	else if (strcmp(command_args[0], "if") == 0)
