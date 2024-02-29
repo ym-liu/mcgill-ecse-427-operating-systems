@@ -1,6 +1,11 @@
 {
   "files.associations": {
     "stdlib.h": "c",
-    "string.h": "c"
+    "string.h": "c",
+    "stdbool.h": "c",
+    "stdio.h": "c",
+    "shellmemory.h": "c",
+    "pcb.h": "c",
+    "stdint.h": "c"
   }
 }

@@ -1,8 +1,30 @@
 #ifndef PCB_H
 #define PCB_H
 #include <stdbool.h>
+
+// size of a single frame
+// extern const int FRAME_SIZE;
+
 /*
- * Struct:  PCB 
+ * Struct:  PAGE
+ * --------------------
+ * index:
+ * valid_bits:
+ * page_index:
+ * page_pid:
+ */
+/*
+typedef struct PAGE PAGE;
+struct PAGE
+{
+ int index[FRAME_SIZE];
+ int valid_bits[FRAME_SIZE];
+ int page_index;
+ int page_pid;
+};*/
+
+/*
+ * Struct:  PCB
  * --------------------
  * pid: process(task) id
  * PC: program counter, stores the index of line that the task is executing
@@ -18,8 +40,8 @@ typedef struct
     int start;
     int end;
     int job_length_score;
-}PCB;
+} PCB;
 
 int generatePID();
-PCB * makePCB(int start, int end);
+PCB *makePCB(int start, int end);
 #endif
