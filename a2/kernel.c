@@ -17,19 +17,36 @@ bool in_background = false;
 
 int process_initialize(char *filename)
 {
-    FILE *fp;
+    // LOAD SCRIPTS INTO BACKING STORE
+    FILE *script_fp = fopen(filename, "r");
+    if (script_fp == NULL)
+        return FILE_DOES_NOT_EXIST;
+
+    char script_in_backing_store[100];
+    strcpy(script_in_backing_store, "./backing_store/");
+    strcat(script_in_backing_store, filename);
+
+    char copy_into_backing_store[100];
+    strcpy(copy_into_backing_store, "cp ");
+    strcat(copy_into_backing_store, filename);
+    strcat(copy_into_backing_store, " ");
+    strcat(copy_into_backing_store, script_in_backing_store);
+    system(copy_into_backing_store);
+
+    // close original script files
+    fclose(script_fp);
+    // open files in backing store
+    FILE *script_in_backing_store_fp = fopen(script_in_backing_store, "r+");
+    if (script_in_backing_store_fp == NULL)
+        return FILE_DOES_NOT_EXIST;
+
+    // LOAD SCRIPTS INTO FRAME STORE
     int *start = (int *)malloc(sizeof(int));
     int *end = (int *)malloc(sizeof(int));
-
-    fp = fopen(filename, "rt");
-    if (fp == NULL)
-    {
-        return FILE_DOES_NOT_EXIST;
-    }
-    int error_code = load_file_into_frame_store(fp, start, end, filename);
+    int error_code = load_file_into_frame_store(script_in_backing_store_fp, start, end, filename);
     if (error_code != 0)
     {
-        fclose(fp);
+        fclose(script_in_backing_store_fp);
         return FILE_ERROR;
     }
     PCB *newPCB = makePCB(*start, *end);
@@ -38,7 +55,7 @@ int process_initialize(char *filename)
 
     ready_queue_add_to_tail(node);
 
-    fclose(fp);
+    fclose(script_in_backing_store_fp);
     return 0;
 }
 
