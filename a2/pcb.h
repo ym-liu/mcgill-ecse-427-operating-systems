@@ -2,9 +2,6 @@
 #define PCB_H
 #include <stdbool.h>
 
-// size of a single frame
-// extern const int FRAME_SIZE;
-
 /*
  * Struct:  PAGE
  * --------------------
@@ -13,15 +10,14 @@
  * page_index:
  * page_pid:
  */
-/*
 typedef struct PAGE PAGE;
 struct PAGE
 {
- int index[FRAME_SIZE];
- int valid_bits[FRAME_SIZE];
- int page_index;
- int page_pid;
-};*/
+    int index[3];      // array of 3, bc 3 lines per page (FRAME_SIZE = 3)
+    int valid_bits[3]; // array of 3, bc 3 lines per page (FRAME_SIZE = 3)
+    int page_index;
+    char *page_pid;
+};
 
 /*
  * Struct:  PCB
@@ -36,12 +32,16 @@ typedef struct
 {
     bool priority;
     int pid;
-    int PC;
-    int start;
-    int end;
+    int PC; // which line the PC is on
+    // int PC_page; // which page the PC is on
+    // int start;
+    // int end;
     int job_length_score;
+    PAGE **page_table;
+    int num_of_pages;
 } PCB;
 
 int generatePID();
-PCB *makePCB(int start, int end);
+PCB *makePCB();
+PAGE *makePAGE(int index[3], int valid_bits[3], int page_index, char *page_pid);
 #endif

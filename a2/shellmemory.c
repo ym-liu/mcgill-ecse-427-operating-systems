@@ -2,10 +2,12 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include "pcb.h"
 #include "shellmemory.h"
+#include "ready_queue.h"
 
 #define SHELL_MEM_LENGTH 1000
-const int FRAME_STORE_SIZE = 2;						 // size of frame store (# of pages in frame store)
+const int FRAME_STORE_SIZE = 10;					 // size of frame store (# of pages in frame store)
 const int FRAME_SIZE = 3;							 // size of a single frame (# of lines in a page)
 const int THRESHOLD = FRAME_STORE_SIZE * FRAME_SIZE; // threshold separating frame store from variable store
 
@@ -73,7 +75,7 @@ void variable_store_mem_init()
 void mem_set_value(char *var_in, char *value_in)
 {
 	int i;
-	for (i = 0; i < 1000; i++)
+	for (i = THRESHOLD; i < 1000; i++)
 	{
 		if (strcmp(shellmemory[i].var, var_in) == 0)
 		{
@@ -83,7 +85,7 @@ void mem_set_value(char *var_in, char *value_in)
 	}
 
 	// Value does not exist, need to find a free spot.
-	for (i = 0; i < 1000; i++)
+	for (i = THRESHOLD; i < 1000; i++)
 	{
 		if (strcmp(shellmemory[i].var, "none") == 0)
 		{
@@ -216,6 +218,123 @@ int load_file(FILE *fp, int *pStart, int *pEnd, char *filename)
 		return error_code;
 	}
 	// printShellMemory();
+	return error_code;
+}
+
+// load file but only load one page
+// Load one page of the source code of the file fp into the frame store of shell memory
+int load_page(FILE *fp, char *filename, PCB *pPCB, int line_start)
+{
+	char *line;
+	size_t i;
+	int error_code = 0;
+	bool hasSpaceLeft = false;
+	bool flag = true;
+	i = 0;
+	int line_count = 0;
+	size_t candidate;
+	while (flag)
+	{
+		flag = false;
+		for (i; i < THRESHOLD; i++)
+		{
+			if (strcmp(shellmemory[i].var, "none") == 0)
+			{
+				hasSpaceLeft = true;
+				break;
+			}
+		}
+		candidate = i;
+		for (i; i < THRESHOLD; i++)
+		{
+			if (strcmp(shellmemory[i].var, "none") != 0)
+			{
+				flag = true;
+				break;
+			}
+		}
+	}
+	i = candidate;
+	// shell memory is full
+	if (hasSpaceLeft == 0)
+	{
+		error_code = 21;
+		return error_code;
+	}
+
+	// create new page
+	int index[3] = {-1, -1, -1};
+	int valid_bits[3] = {-1, -1, -1};
+	int page_index = 0;
+	PAGE *page_p = makePAGE(index, valid_bits, -1, filename);
+	print_ready_queue();
+	// if (page_p == NULL), then what do?
+
+	// add new page to page table
+	if (pPCB->page_table == NULL)
+		pPCB->page_table = &page_p;
+	// else?
+
+	for (size_t j = i; j < THRESHOLD; j++)
+	{
+		if (feof(fp))
+		{
+			while ((j - i) % FRAME_SIZE != 0) // fill the rest of the page with invalid
+			{
+				page_p->index[(j - i) % FRAME_SIZE] = j;
+				page_p->valid_bits[(j - i) % FRAME_SIZE] = 0; // 0 = INVALID
+				shellmemory[j].var = strdup(filename);
+				shellmemory[j].value = strndup("none", 1 * sizeof(char));
+				printf("page index of line: %d    ", page_p->index[(j - i) % FRAME_SIZE]);
+				printf("valid bit of line: %d", page_p->valid_bits[(j - i) % FRAME_SIZE]);
+				printf("\n");
+				j++;
+			}
+			break;
+		}
+		else
+		{
+			line = calloc(1, THRESHOLD);
+			if (fgets(line, THRESHOLD, fp) == NULL)
+				continue;
+
+			if (line_count < line_start)
+				continue; // do not read lines before line_start
+			line_count++;
+
+			// after loading 3 lines (i.e., one page), break
+			if ((j - i) % FRAME_SIZE == 0 && j != i)
+				break;
+
+			// add line to page
+			page_p->index[(j - i) % FRAME_SIZE] = j;
+			page_p->valid_bits[(j - i) % FRAME_SIZE] = 1; // 1 = VALID
+			printf("page index of line: %d    ", page_p->index[(j - i) % FRAME_SIZE]);
+			printf("valid bit of line: %d", page_p->valid_bits[(j - i) % FRAME_SIZE]);
+			printf("\n");
+
+			shellmemory[j].var = strdup(filename);
+			shellmemory[j].value = strndup(line, strlen(line));
+			free(line);
+		}
+	}
+
+	// no space left to load the entire file into shell memory
+	if (!feof(fp))
+	{
+		error_code = 21;
+		// clean up the file in memory
+		for (int j = 1; i <= THRESHOLD; i++)
+		{
+			shellmemory[j].var = "none";
+			shellmemory[j].value = "none";
+		}
+		return error_code;
+	}
+	// printShellMemory();
+	printf("new page indices: %i, %i, %i\nnew page page_index: %i\nnew page pid: %i\n",
+		   (*(pPCB->page_table))->index[0], (*(pPCB->page_table))->index[1], (*(pPCB->page_table))->index[2],
+		   (*(pPCB->page_table))->index, (*(pPCB->page_table))->page_pid);
 	return error_code;
 }
 
