@@ -5,7 +5,7 @@
 #include "shellmemory.h"
 
 #define SHELL_MEM_LENGTH 1000
-const int FRAME_STORE_SIZE = 2;						 // size of frame store (# of pages in frame store)
+const int FRAME_STORE_SIZE = 10;					 // size of frame store (# of pages in frame store)
 const int FRAME_SIZE = 3;							 // size of a single frame (# of lines in a page)
 const int THRESHOLD = FRAME_STORE_SIZE * FRAME_SIZE; // threshold separating frame store from variable store
 
@@ -73,7 +73,7 @@ void variable_store_mem_init()
 void mem_set_value(char *var_in, char *value_in)
 {
 	int i;
-	for (i = 0; i < 1000; i++)
+	for (i = THRESHOLD; i < 1000; i++)
 	{
 		if (strcmp(shellmemory[i].var, var_in) == 0)
 		{
@@ -83,7 +83,7 @@ void mem_set_value(char *var_in, char *value_in)
 	}
 
 	// Value does not exist, need to find a free spot.
-	for (i = 0; i < 1000; i++)
+	for (i = THRESHOLD; i < 1000; i++)
 	{
 		if (strcmp(shellmemory[i].var, "none") == 0)
 		{
@@ -216,6 +216,81 @@ int load_file(FILE *fp, int *pStart, int *pEnd, char *filename)
 		return error_code;
 	}
 	// printShellMemory();
+	return error_code;
+}
+
+int load_file_into_frame_store(FILE *fp, int *pStart, int *pEnd, char *filename)
+{
+	char *line;
+	size_t i;
+	int error_code = 0;
+	bool hasSpaceLeft = false;
+	bool flag = true;
+	i = 0;
+	size_t candidate;
+	while (flag)
+	{
+		flag = false;
+		for (i; i < THRESHOLD; i++)
+		{
+			if (strcmp(shellmemory[i].var, "none") == 0)
+			{
+				*pStart = (int)i;
+				hasSpaceLeft = true;
+				break;
+			}
+		}
+		candidate = i;
+		for (i; i < THRESHOLD; i++)
+		{
+			if (strcmp(shellmemory[i].var, "none") != 0)
+			{
+				flag = true;
+				break;
+			}
+		}
+	}
+	i = candidate;
+	// shell memory is full
+	if (hasSpaceLeft == 0)
+	{
+		error_code = 21;
+		return error_code;
+	}
+
+	for (size_t j = i; j < THRESHOLD; j++)
+	{
+		if (feof(fp))
+		{
+			*pEnd = (int)j - 1;
+			break;
+		}
+		else
+		{
+			line = calloc(1, THRESHOLD);
+			if (fgets(line, THRESHOLD, fp) == NULL)
+			{
+				continue;
+			}
+			shellmemory[j].var = strdup(filename);
+			shellmemory[j].value = strndup(line, strlen(line));
+			free(line);
+		}
+	}
+
+	// no space left to load the entire file into shell memory
+	if (!feof(fp))
+	{
+		error_code = 21;
+		// clean up the file in memory
+		for (int j = 1; i <= THRESHOLD; i++)
+		{
+			shellmemory[j].var = "none";
+			shellmemory[j].value = "none";
+		}
+		return error_code;
+	}
+	printShellMemory();
 	return error_code;
 }
 

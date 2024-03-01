@@ -1,10 +1,11 @@
 #ifndef INTERPRETER_H
 #define INTERPRETER_H
 
-int interpreter(char* command_args[], int args_size);
+int interpreter(char *command_args[], int args_size);
 int help();
 
-enum Error {
+enum Error
+{
 	NO_ERROR,
 	FILE_DOES_NOT_EXIST,
 	FILE_ERROR,
