@@ -43,13 +43,25 @@ int process_initialize(char *filename)
     // LOAD SCRIPTS INTO FRAME STORE
     int *start = (int *)malloc(sizeof(int));
     int *end = (int *)malloc(sizeof(int));
-    int error_code = load_file_into_frame_store(script_in_backing_store_fp, start, end, filename);
+    int page_table[PAGE_TABLE_SIZE];
+    for (int i = 0; i < PAGE_TABLE_SIZE; i++) // initialize page table with -1's
+    {
+        page_table[i] = -1;
+    }
+    int error_code = load_file_into_frame_store(script_in_backing_store_fp, start, end, filename, page_table);
     if (error_code != 0)
     {
         fclose(script_in_backing_store_fp);
         return FILE_ERROR;
     }
-    PCB *newPCB = makePCB(*start, *end);
+    PCB *newPCB = makePCB_withPageTable(*start, *end, page_table);
+    printf("PAGE TABLE for %s = [", filename);
+    for (int i = 0; i < PAGE_TABLE_SIZE - 1; i++)
+    {
+        printf("%i, ", newPCB->page_table[i]);
+    }
+    printf("%i]\n\n", newPCB->page_table[PAGE_TABLE_SIZE - 1]);
+
     QueueNode *node = malloc(sizeof(QueueNode));
     node->pcb = newPCB;
 
@@ -94,9 +106,10 @@ bool execute_process(QueueNode *node, int quanta)
         {
             pcb->priority = false;
         }
-        if (pcb->PC > pcb->end)
-        {
-            parseInput(line);
+        if (pcb->PC > pcb->end || strcmp(line, "none") == 0)
+        { // if we reached the end or reached a line that is padding
+            if (strcmp(line, "none") != 0)
+                parseInput(line);
             terminate_process(node);
             in_background = false;
             return true;

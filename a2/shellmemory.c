@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include "pcb.h"
 #include "shellmemory.h"
 
 #define SHELL_MEM_LENGTH 1000
@@ -219,7 +220,7 @@ int load_file(FILE *fp, int *pStart, int *pEnd, char *filename)
 	return error_code;
 }
 
-int load_file_into_frame_store(FILE *fp, int *pStart, int *pEnd, char *filename)
+int load_file_into_frame_store(FILE *fp, int *pStart, int *pEnd, char *filename, int *page_table)
 {
 	char *line;
 	size_t i;
@@ -228,6 +229,7 @@ int load_file_into_frame_store(FILE *fp, int *pStart, int *pEnd, char *filename)
 	bool flag = true;
 	i = 0;
 	size_t candidate;
+	int num_of_pages = 0;
 	while (flag)
 	{
 		flag = false;
@@ -262,7 +264,16 @@ int load_file_into_frame_store(FILE *fp, int *pStart, int *pEnd, char *filename)
 	{
 		if (feof(fp))
 		{
+			// pad the rest of the page
+			while ((j - i) % FRAME_SIZE != 0)
+			{
+				shellmemory[j].var = strdup(filename);
+				shellmemory[j].value = strndup("none", 4 * sizeof(char));
+				j++;
+			}
+
 			*pEnd = (int)j - 1;
+
 			break;
 		}
 		else
@@ -274,6 +285,19 @@ int load_file_into_frame_store(FILE *fp, int *pStart, int *pEnd, char *filename)
 			}
 			shellmemory[j].var = strdup(filename);
 			shellmemory[j].value = strndup(line, strlen(line));
+
+			if ((j - i) % FRAME_SIZE == 0)
+			{
+				// store frame# in page table
+				if (num_of_pages < PAGE_TABLE_SIZE) // ensure page table large enough
+				{
+					page_table[num_of_pages] = j / FRAME_SIZE;
+					num_of_pages++;
+				}
+				else
+					printf("Page table not large enough to record frame# %i\n", j / FRAME_SIZE);
+			}
+
 			free(line);
 		}
 	}
