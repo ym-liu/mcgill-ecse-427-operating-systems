@@ -39,13 +39,13 @@ typedef struct
     bool priority;
     int pid;
     int PC;
-    int start;
-    int end;
+    // int start;
+    // int end;
     int job_length_score;
     int page_table[PAGE_TABLE_SIZE];
 } PCB;
 
 int generatePID();
-PCB *makePCB(int start, int end);
-PCB *makePCB_withPageTable(int start, int end, int *page_table);
+/*PCB *makePCB(int start, int end);*/
+PCB *makePCB_withPageTable(int *page_table);
 #endif

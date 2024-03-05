@@ -286,8 +286,6 @@ int exec(char *fname1, char *fname2, char *fname3)
 {
 	int error_code = 0;
 
-	// TODO: copy files to backing store
-
 	if (fname1 != NULL)
 	{
 		error_code = process_initialize(fname1);
@@ -317,6 +315,7 @@ int exec(char *fname1, char *fname2, char *fname3)
 	{
 		return handle_error(error_code);
 	}
+	return error_code;
 }
 
 // clears variable store

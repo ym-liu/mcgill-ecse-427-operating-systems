@@ -41,20 +41,20 @@ int process_initialize(char *filename)
         return FILE_DOES_NOT_EXIST;
 
     // LOAD SCRIPTS INTO FRAME STORE
-    int *start = (int *)malloc(sizeof(int));
-    int *end = (int *)malloc(sizeof(int));
     int page_table[PAGE_TABLE_SIZE];
     for (int i = 0; i < PAGE_TABLE_SIZE; i++) // initialize page table with -1's
     {
         page_table[i] = -1;
     }
-    int error_code = load_file_into_frame_store(script_in_backing_store_fp, start, end, filename, page_table);
+    int error_code = load_file_into_frame_store(script_in_backing_store_fp, filename, page_table);
     if (error_code != 0)
     {
         fclose(script_in_backing_store_fp);
         return FILE_ERROR;
     }
-    PCB *newPCB = makePCB_withPageTable(*start, *end, page_table);
+    PCB *newPCB = makePCB_withPageTable(page_table);
+
+    // for debugging purposes
     printf("PAGE TABLE for %s = [", filename);
     for (int i = 0; i < PAGE_TABLE_SIZE - 1; i++)
     {
@@ -71,7 +71,7 @@ int process_initialize(char *filename)
     return 0;
 }
 
-int shell_process_initialize()
+/*int shell_process_initialize()
 {
     // Note that "You can assume that the # option will only be used in batch mode."
     // So we know that the input is a file, we can directly load the file into ram
@@ -92,24 +92,73 @@ int shell_process_initialize()
 
     freopen("/dev/tty", "r", stdin);
     return 0;
-}
+}*/
 
 bool execute_process(QueueNode *node, int quanta)
 {
     char *line = NULL;
     PCB *pcb = node->pcb;
+
+    // find where PC is in page table
+    int page_num = 0;
+    while (pcb->PC != pcb->page_table[page_num] * FRAME_SIZE) // go page-by-page
+    {                                                         // if we find PC, exit while-loop
+        // iterate through all the lines in the page
+        int line_num = 0;
+        for (line_num; line_num < FRAME_SIZE; line_num++) // go line-by-line
+        {
+            if (pcb->PC == (pcb->page_table[page_num] * FRAME_SIZE) + line_num)
+                break;
+        }
+
+        // if we find PC, exit while-loop; if we did not find PC, go to next page
+        if (pcb->PC == (pcb->page_table[page_num] * FRAME_SIZE) + line_num)
+            break;
+        else
+            page_num++;
+
+        // if we reach the end of the page table, do not execute anything
+        if (page_num >= PAGE_TABLE_SIZE)
+        {
+            printf("Could not locate program counter in page table for process with PID %i", pcb->pid);
+            terminate_process(node);
+            in_background = false;
+            return true;
+        }
+    }
+
     for (int i = 0; i < quanta; i++)
     {
-        line = mem_get_value_at_line(pcb->PC++);
+        // get line at PC
+        // if line is on next page, get line and update PC to next page
+        if (pcb->PC % FRAME_SIZE == 0 && pcb->PC != pcb->page_table[page_num] * FRAME_SIZE)
+        {
+            page_num++;
+            // ensure there is, in fact, a next page
+            if (page_num < PAGE_TABLE_SIZE && (pcb->page_table[page_num] >= 0 && pcb->page_table[page_num] < FRAME_STORE_SIZE))
+            {
+                pcb->PC = pcb->page_table[page_num] * FRAME_SIZE; // update PC to next page
+                line = mem_get_value_at_line(pcb->PC++);          // get line
+            }
+            // if we reached the end
+            else
+            {
+                terminate_process(node);
+                in_background = false;
+                return true;
+            }
+        }
+        // if line is on same page, get line and increment PC
+        else
+            line = mem_get_value_at_line(pcb->PC++);
+
         in_background = true;
         if (pcb->priority)
         {
             pcb->priority = false;
         }
-        if (pcb->PC > pcb->end || strcmp(line, "none") == 0)
-        { // if we reached the end or reached a line that is padding
-            if (strcmp(line, "none") != 0)
-                parseInput(line);
+        if (strcmp(line, "none") == 0)
+        { // if we reached a line that is padding
             terminate_process(node);
             in_background = false;
             return true;

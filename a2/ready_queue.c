@@ -77,7 +77,13 @@ void print_ready_queue()
 void terminate_process(QueueNode *node)
 {
     // node should not be in the ready queue
-    mem_free_lines_between(node->pcb->start, node->pcb->end);
+    for (int i = 0; i < PAGE_TABLE_SIZE; i++) // iterate through the page table
+    {
+        int frame_num = node->pcb->page_table[i];
+        if (frame_num >= 0 && frame_num < FRAME_STORE_SIZE) // ensure valid frame#
+            mem_free_lines_between(frame_num * FRAME_SIZE,
+                                   ((frame_num + 1) * FRAME_SIZE) - 1);
+    }
     free(node);
 }
 

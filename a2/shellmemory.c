@@ -5,11 +5,6 @@
 #include "pcb.h"
 #include "shellmemory.h"
 
-#define SHELL_MEM_LENGTH 1000
-const int FRAME_STORE_SIZE = 10;					 // size of frame store (# of pages in frame store)
-const int FRAME_SIZE = 3;							 // size of a single frame (# of lines in a page)
-const int THRESHOLD = FRAME_STORE_SIZE * FRAME_SIZE; // threshold separating frame store from variable store
-
 struct memory_struct
 {
 	char *var;
@@ -220,7 +215,7 @@ int load_file(FILE *fp, int *pStart, int *pEnd, char *filename)
 	return error_code;
 }
 
-int load_file_into_frame_store(FILE *fp, int *pStart, int *pEnd, char *filename, int *page_table)
+int load_file_into_frame_store(FILE *fp, char *filename, int *page_table)
 {
 	char *line;
 	size_t i;
@@ -237,7 +232,6 @@ int load_file_into_frame_store(FILE *fp, int *pStart, int *pEnd, char *filename,
 		{
 			if (strcmp(shellmemory[i].var, "none") == 0)
 			{
-				*pStart = (int)i;
 				hasSpaceLeft = true;
 				break;
 			}
@@ -271,8 +265,6 @@ int load_file_into_frame_store(FILE *fp, int *pStart, int *pEnd, char *filename,
 				shellmemory[j].value = strndup("none", 4 * sizeof(char));
 				j++;
 			}
-
-			*pEnd = (int)j - 1;
 
 			break;
 		}
