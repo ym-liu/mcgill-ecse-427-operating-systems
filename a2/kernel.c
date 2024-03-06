@@ -46,12 +46,20 @@ int process_initialize(char *filename)
     {
         page_table[i] = -1;
     }
-    int error_code = load_file_into_frame_store(script_in_backing_store_fp, filename, page_table);
+    // load first two pages into frame store
+    int error_code = load_page_into_frame_store(script_in_backing_store_fp, filename, page_table, 0);
     if (error_code != 0)
     {
         fclose(script_in_backing_store_fp);
         return FILE_ERROR;
     }
+    error_code = load_page_into_frame_store(script_in_backing_store_fp, filename, page_table, 1);
+    if (error_code != 0)
+    {
+        fclose(script_in_backing_store_fp);
+        return FILE_ERROR;
+    }
+
     PCB *newPCB = makePCB_withPageTable(page_table);
 
     // for debugging purposes

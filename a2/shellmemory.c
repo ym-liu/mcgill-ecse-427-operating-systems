@@ -13,9 +13,6 @@ struct memory_struct
 
 struct memory_struct shellmemory[SHELL_MEM_LENGTH];
 
-// TODO: function to alloc a new frame
-// use shell memory functions
-
 // Helper functions
 int match(char *model, char *var)
 {
@@ -140,7 +137,7 @@ void printShellMemory()
  *
  * returns: error code, 21: no space left
  */
-int load_file(FILE *fp, int *pStart, int *pEnd, char *filename)
+/*int load_file(FILE *fp, int *pStart, int *pEnd, char *filename)
 {
 	char *line;
 	size_t i;
@@ -213,7 +210,7 @@ int load_file(FILE *fp, int *pStart, int *pEnd, char *filename)
 	}
 	// printShellMemory();
 	return error_code;
-}
+}*/
 
 int load_file_into_frame_store(FILE *fp, char *filename, int *page_table)
 {
@@ -221,32 +218,19 @@ int load_file_into_frame_store(FILE *fp, char *filename, int *page_table)
 	size_t i;
 	int error_code = 0;
 	bool hasSpaceLeft = false;
-	bool flag = true;
 	i = 0;
-	size_t candidate;
 	int num_of_pages = 0;
-	while (flag)
+
+	// find first available hole
+	for (i; i < THRESHOLD; i++)
 	{
-		flag = false;
-		for (i; i < THRESHOLD; i++)
+		if (strcmp(shellmemory[i].var, "none") == 0)
 		{
-			if (strcmp(shellmemory[i].var, "none") == 0)
-			{
-				hasSpaceLeft = true;
-				break;
-			}
-		}
-		candidate = i;
-		for (i; i < THRESHOLD; i++)
-		{
-			if (strcmp(shellmemory[i].var, "none") != 0)
-			{
-				flag = true;
-				break;
-			}
+			hasSpaceLeft = true;
+			break;
 		}
 	}
-	i = candidate;
+
 	// shell memory is full
 	if (hasSpaceLeft == 0)
 	{
@@ -297,6 +281,97 @@ int load_file_into_frame_store(FILE *fp, char *filename, int *page_table)
 	// no space left to load the entire file into shell memory
 	if (!feof(fp))
 	{
+		error_code = 21;
+		// clean up the file in memory
+		for (int j = 1; i <= THRESHOLD; i++)
+		{
+			shellmemory[j].var = "none";
+			shellmemory[j].value = "none";
+		}
+		return error_code;
+	}
+	printShellMemory();
+	return error_code;
+}
+
+int load_page_into_frame_store(FILE *fp, char *filename, int *page_table, int page_num)
+{
+	char *line;
+	size_t i;
+	int error_code = 0;
+	bool hasSpaceLeft = false;
+	bool hasLoadedFullPage = false;
+	i = 0;
+
+	// find first available hole
+	for (i; i < THRESHOLD; i++)
+	{
+		if (strcmp(shellmemory[i].var, "none") == 0)
+		{
+			hasSpaceLeft = true;
+			break;
+		}
+	}
+
+	// TODO: if shell memory is full, handle page fault
+	if (hasSpaceLeft == 0)
+	{
+		error_code = 21;
+		return error_code;
+	}
+
+	// load page into shell memory
+	for (size_t j = i; j < THRESHOLD; j++)
+	{
+		// if we reached eof, then break
+		if (feof(fp))
+		{
+			// pad the rest of the page
+			while ((j - i) % FRAME_SIZE != 0)
+			{
+				shellmemory[j].var = strdup(filename);
+				shellmemory[j].value = strndup("none", 4 * sizeof(char));
+				j++;
+			}
+
+			break;
+		}
+		// if we finished loading a full page, then break
+		else if (((j - i) % FRAME_SIZE == 0 && j != i))
+		{
+			hasLoadedFullPage = true;
+			break;
+		}
+
+		else
+		{
+			line = calloc(1, THRESHOLD);
+			if (fgets(line, THRESHOLD, fp) == NULL)
+			{
+				continue;
+			}
+			shellmemory[j].var = strdup(filename);
+			shellmemory[j].value = strndup(line, strlen(line));
+
+			if ((j - i) % FRAME_SIZE == 0)
+			{
+				// store frame# in page table
+				if (page_num < PAGE_TABLE_SIZE) // ensure page table large enough
+				{
+					page_table[page_num] = j / FRAME_SIZE;
+				}
+				else
+					printf("Page table not large enough to record frame# %i\n", j / FRAME_SIZE);
+			}
+
+			free(line);
+		}
+	}
+
+	// no space left to load the entire file into shell memory
+	// TODO: handle page fault
+	if (!feof(fp) && !hasLoadedFullPage) // does this even happen?
+	{									 // maybe if SHELL_MEM_LENGTH % FRAME_SIZE != 0
 		error_code = 21;
 		// clean up the file in memory
 		for (int j = 1; i <= THRESHOLD; i++)
