@@ -22,9 +22,11 @@ typedef struct
     // int end;
     int job_length_score;
     int page_table[PAGE_TABLE_SIZE];
+    FILE *fp;
+    char filename[100];
 } PCB;
 
 int generatePID();
 /*PCB *makePCB(int start, int end);*/
-PCB *makePCB_withPageTable(int *page_table);
+PCB *makePCB_withPageTable(int *page_table, FILE *fp, char *filename);
 #endif

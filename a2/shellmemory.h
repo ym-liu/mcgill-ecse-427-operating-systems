@@ -2,7 +2,7 @@
 #define SHELLMEMORY_H
 
 #define SHELL_MEM_LENGTH 1000
-#define FRAME_STORE_SIZE 10                       // size of frame store (# of pages in frame store)
+#define FRAME_STORE_SIZE 100                      // size of frame store (# of pages in frame store)
 #define FRAME_SIZE 3                              // size of a single frame (# of lines in a page)
 #define THRESHOLD (FRAME_STORE_SIZE * FRAME_SIZE) // threshold separating frame store from variable store
 

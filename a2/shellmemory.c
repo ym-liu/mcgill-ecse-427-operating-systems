@@ -226,7 +226,7 @@ int load_page_into_frame_store(FILE *fp, char *filename, int *page_table, int pa
 {
 	char *line;
 	size_t i;
-	int error_code = 0;
+	int error_code = 21;
 	bool hasSpaceLeft = false;
 	bool hasLoadedFullPage = false;
 	i = 0;
@@ -255,6 +255,7 @@ int load_page_into_frame_store(FILE *fp, char *filename, int *page_table, int pa
 		// if we reached eof, then break
 		if (feof(fp))
 		{
+			// printf("WHY BREAK: reached eof\n");
 			// pad the rest of the page
 			while ((j - i) % FRAME_SIZE != 0)
 			{
@@ -268,6 +269,7 @@ int load_page_into_frame_store(FILE *fp, char *filename, int *page_table, int pa
 		// if we reached threshold, then break
 		else if (j == THRESHOLD)
 		{
+			// printf("WHY BREAK: reached threshold\n");
 			// if we finished loading a full page
 			if (((j - i) % FRAME_SIZE == 0 && j != i))
 				hasLoadedFullPage = true;
@@ -277,6 +279,7 @@ int load_page_into_frame_store(FILE *fp, char *filename, int *page_table, int pa
 		// if we finished loading a full page, then break
 		else if (((j - i) % FRAME_SIZE == 0 && j != i))
 		{
+			// printf("WHY BREAK: finished loading a full page\n");
 			hasLoadedFullPage = true;
 			break;
 		}
@@ -290,6 +293,7 @@ int load_page_into_frame_store(FILE *fp, char *filename, int *page_table, int pa
 			}
 			shellmemory[j].var = strdup(filename);
 			shellmemory[j].value = strndup(line, strlen(line));
+			error_code = 0;
 
 			if ((j - i) % FRAME_SIZE == 0)
 			{
@@ -301,6 +305,10 @@ int load_page_into_frame_store(FILE *fp, char *filename, int *page_table, int pa
 				else
 					printf("Page table not large enough to record frame# %i\n", j / FRAME_SIZE);
 			}
+
+			/*printf("LINE STORED: %s", line);
+			if (feof(fp))
+				printf("\n");*/
 
 			free(line);
 		}
@@ -399,6 +407,8 @@ int pick_victim_frame()
 		}
 		printf("%s", shellmemory[j].value);
 	}
+	if ((current != NULL && current->pcb != NULL && current->pcb->fp != NULL) && feof(current->pcb->fp))
+		printf("\n");
 	printf("End of victim page contents.\n");
 
 	// EVICT FRAME

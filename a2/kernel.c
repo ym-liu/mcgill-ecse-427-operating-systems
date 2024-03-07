@@ -17,6 +17,8 @@ bool in_background = false;
 
 int process_initialize(char *filename)
 {
+    // printf("-------- INITIALIZE_PROCESS IS CALLED --------\n");
+
     // LOAD SCRIPTS INTO BACKING STORE
     FILE *script_fp = fopen(filename, "r");
     if (script_fp == NULL)
@@ -66,19 +68,19 @@ int process_initialize(char *filename)
     }
     // load first two pages into frame store
     int error_code = load_page_into_frame_store(script_in_backing_store_fp, filename, page_table, 0);
-    if (error_code != 0)
+    /*if (error_code != 0)
     {
         fclose(script_in_backing_store_fp);
         return FILE_ERROR;
-    }
+    }*/
     error_code = load_page_into_frame_store(script_in_backing_store_fp, filename, page_table, 1);
-    if (error_code != 0)
+    /*if (error_code != 0)
     {
         fclose(script_in_backing_store_fp);
         return FILE_ERROR;
-    }
+    }*/
 
-    PCB *newPCB = makePCB_withPageTable(page_table);
+    PCB *newPCB = makePCB_withPageTable(page_table, script_in_backing_store_fp, filename);
 
     /*// for debugging purposes
     printf("PAGE TABLE for %s = [", filename);
@@ -99,6 +101,8 @@ int process_initialize(char *filename)
 
 bool execute_process(QueueNode *node, int quanta)
 {
+    // printf("-------- EXECUTE_PROCESS IS CALLED --------\n");
+
     char *line = NULL;
     PCB *pcb = node->pcb;
 
@@ -144,15 +148,15 @@ bool execute_process(QueueNode *node, int quanta)
                 pcb->PC = pcb->page_table[page_num] * FRAME_SIZE; // update PC to next page
                 line = mem_get_value_at_line(pcb->PC++);          // get line
             }
-            // TODO: if there is no next page in the page table, handle page fault
-            else if (page_num < PAGE_TABLE_SIZE && pcb->page_table[page_num] == -1)
+            // if there is no next page in the page table, handle page fault
+            else if (page_num < PAGE_TABLE_SIZE && (pcb->page_table[page_num] == -1 && !feof(pcb->fp)))
             {
-                // if (!handle_page_fault()) // if there is no next page in the backing store
-                //{
-                terminate_process(node);
-                in_background = false;
-                return true;
-                //}
+                if (!handle_page_fault(pcb->fp, pcb->filename, pcb->page_table, page_num)) // if there is no next page in the backing store
+                {
+                    terminate_process(node);
+                    in_background = false;
+                    return true;
+                }
             }
             // if we reached the end
             else
@@ -180,7 +184,38 @@ bool execute_process(QueueNode *node, int quanta)
         parseInput(line);
         in_background = false;
     }
+
     return false;
+}
+
+bool handle_page_fault(FILE *fp, char *filename, int *page_table, int page_num)
+{
+    // printf("-------- HANDLE_PAGE_FAULT_IS_CALLED --------\n");
+
+    bool isInShellMemory = false;
+
+    // INTERRUPT CURRENT PROCESS,
+    // PLACE IT AT THE BACK OF THE READY QUEUE
+    QueueNode *current_node = ready_queue_pop_head();
+    if (current_node != NULL)
+        ready_queue_add_to_tail(current_node);
+
+    // BRING MISSING PAGE FROM BACKING STORE INTO FRAME STORE
+    // UPDATE PAGE TABLE
+    // TODO: check if missing page is in shell memory
+    int error_code = load_page_into_frame_store(fp, filename, page_table, page_num);
+    if (error_code == 0)
+        isInShellMemory = true;
+
+    /*// for debugging purposes
+    printf("PAGE TABLE for %s after page fault = [", filename);
+    for (int i = 0; i < PAGE_TABLE_SIZE - 1; i++)
+    {
+        printf("%i, ", page_table[i]);
+    }
+    printf("%i]\n\n", page_table[PAGE_TABLE_SIZE - 1]);*/
+
+    return isInShellMemory;
 }
 
 void *scheduler_FCFS()
@@ -286,6 +321,9 @@ void *scheduler_RR(void *arg)
                 break;
         }
         cur = ready_queue_pop_head();
+        if (cur == NULL)
+            return 0;
+
         if (!execute_process(cur, quanta))
         {
             ready_queue_add_to_tail(cur);
