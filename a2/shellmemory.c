@@ -2,7 +2,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <time.h>
 #include "pcb.h"
+#include "ready_queue.h"
 #include "shellmemory.h"
 
 struct memory_struct
@@ -137,80 +139,6 @@ void printShellMemory()
  *
  * returns: error code, 21: no space left
  */
-/*int load_file(FILE *fp, int *pStart, int *pEnd, char *filename)
-{
-	char *line;
-	size_t i;
-	int error_code = 0;
-	bool hasSpaceLeft = false;
-	bool flag = true;
-	i = 101;
-	size_t candidate;
-	while (flag)
-	{
-		flag = false;
-		for (i; i < SHELL_MEM_LENGTH; i++)
-		{
-			if (strcmp(shellmemory[i].var, "none") == 0)
-			{
-				*pStart = (int)i;
-				hasSpaceLeft = true;
-				break;
-			}
-		}
-		candidate = i;
-		for (i; i < SHELL_MEM_LENGTH; i++)
-		{
-			if (strcmp(shellmemory[i].var, "none") != 0)
-			{
-				flag = true;
-				break;
-			}
-		}
-	}
-	i = candidate;
-	// shell memory is full
-	if (hasSpaceLeft == 0)
-	{
-		error_code = 21;
-		return error_code;
-	}
-
-	for (size_t j = i; j < SHELL_MEM_LENGTH; j++)
-	{
-		if (feof(fp))
-		{
-			*pEnd = (int)j - 1;
-			break;
-		}
-		else
-		{
-			line = calloc(1, SHELL_MEM_LENGTH);
-			if (fgets(line, SHELL_MEM_LENGTH, fp) == NULL)
-			{
-				continue;
-			}
-			shellmemory[j].var = strdup(filename);
-			shellmemory[j].value = strndup(line, strlen(line));
-			free(line);
-		}
-	}
-
-	// no space left to load the entire file into shell memory
-	if (!feof(fp))
-	{
-		error_code = 21;
-		// clean up the file in memory
-		for (int j = 1; i <= SHELL_MEM_LENGTH; i++)
-		{
-			shellmemory[j].var = "none";
-			shellmemory[j].value = "none";
-		}
-		return error_code;
-	}
-	// printShellMemory();
-	return error_code;
-}*/
 
 int load_file_into_frame_store(FILE *fp, char *filename, int *page_table)
 {
@@ -290,7 +218,7 @@ int load_file_into_frame_store(FILE *fp, char *filename, int *page_table)
 		}
 		return error_code;
 	}
-	printShellMemory();
+	// printShellMemory();
 	return error_code;
 }
 
@@ -313,15 +241,16 @@ int load_page_into_frame_store(FILE *fp, char *filename, int *page_table, int pa
 		}
 	}
 
-	// TODO: if shell memory is full, handle page fault
-	if (hasSpaceLeft == 0)
+	// if shell memory is full, handle page fault
+	if (!(feof(fp)) && hasSpaceLeft == 0)
 	{
-		error_code = 21;
-		return error_code;
+		// pick victim frame to evict and evict it
+		i = pick_victim_frame() * FRAME_SIZE;
+		// and from here, we can bring missing page from backing store into frame store
 	}
 
 	// load page into shell memory
-	for (size_t j = i; j < THRESHOLD; j++)
+	for (size_t j = i; j <= THRESHOLD; j++)
 	{
 		// if we reached eof, then break
 		if (feof(fp))
@@ -336,6 +265,15 @@ int load_page_into_frame_store(FILE *fp, char *filename, int *page_table, int pa
 
 			break;
 		}
+		// if we reached threshold, then break
+		else if (j == THRESHOLD)
+		{
+			// if we finished loading a full page
+			if (((j - i) % FRAME_SIZE == 0 && j != i))
+				hasLoadedFullPage = true;
+
+			break;
+		}
 		// if we finished loading a full page, then break
 		else if (((j - i) % FRAME_SIZE == 0 && j != i))
 		{
@@ -345,8 +283,8 @@ int load_page_into_frame_store(FILE *fp, char *filename, int *page_table, int pa
 
 		else
 		{
-			line = calloc(1, THRESHOLD);
-			if (fgets(line, THRESHOLD, fp) == NULL)
+			line = calloc(1, SHELL_MEM_LENGTH);
+			if (fgets(line, SHELL_MEM_LENGTH, fp) == NULL)
 			{
 				continue;
 			}
@@ -368,10 +306,9 @@ int load_page_into_frame_store(FILE *fp, char *filename, int *page_table, int pa
 		}
 	}
 
-	// no space left to load the entire file into shell memory
-	// TODO: handle page fault
-	if (!feof(fp) && !hasLoadedFullPage) // does this even happen?
-	{									 // maybe if SHELL_MEM_LENGTH % FRAME_SIZE != 0
+	// no space left to load the entire page into shell memory
+	/*if (!feof(fp) && !hasLoadedFullPage) // does this even happen?
+	{									   // only if THRESHOLD % FRAME_SIZE != 0
 		error_code = 21;
 		// clean up the file in memory
 		for (int j = 1; i <= THRESHOLD; i++)
@@ -380,8 +317,8 @@ int load_page_into_frame_store(FILE *fp, char *filename, int *page_table, int pa
 			shellmemory[j].value = "none";
 		}
 		return error_code;
-	}
-	printShellMemory();
+	}*/
+	// printShellMemory();
 	return error_code;
 }
 
@@ -408,3 +345,68 @@ void mem_free_lines_between(int start, int end)
 		shellmemory[i].value = "none";
 	}
 }
+
+// returns victim frame
+int pick_victim_frame()
+{
+	// PICK RANDOM FRAME
+	srand(time(NULL));
+	int victim_frame = rand() % FRAME_STORE_SIZE; // some number between 0 and (FRAME_STORE_SIZE-1)
+
+	// UPDATE PAGE TABLE
+	// find victim frame in ready_queue
+	QueueNode *current = ready_queue_peek_head();
+	bool frameNumFound = false;
+	while (current != NULL)
+	{
+		// iterate through the current node's page table to find victim_frame
+		for (int i = 0; i < PAGE_TABLE_SIZE; i++)
+		{
+			// if we found victim frame
+			if (current->pcb->page_table[i] == victim_frame)
+			{
+				frameNumFound = true;
+				// update victim frame's PCB's page table
+				current->pcb->page_table[i] = -1;
+
+				/*// for debugging purposes
+				printf("PAGE TABLE for PID %i after eviction = [", current->pcb->pid);
+				for (int k = 0; k < PAGE_TABLE_SIZE - 1; k++)
+				{
+					printf("%i, ", current->pcb->page_table[k]);
+				}
+				printf("%i]\n\n", current->pcb->page_table[PAGE_TABLE_SIZE - 1]);*/
+				break;
+			}
+		}
+		if (frameNumFound)
+			break;
+		current = ready_queue_peek_next(current);
+	}
+
+	if (!frameNumFound)
+	{ // ...then what?
+	}
+
+	// PRINT PAGE FAULT
+	printf("Page fault! Victim page contents:\n");
+	for (int j = victim_frame * FRAME_SIZE; j < (victim_frame + 1) * FRAME_SIZE; j++)
+	{
+		if (strcmp("none", shellmemory[j].value) == 0)
+		{
+			printf("\n");
+			break;
+		}
+		printf("%s", shellmemory[j].value);
+	}
+	printf("End of victim page contents.\n");
+
+	// EVICT FRAME
+	for (int i = victim_frame * FRAME_SIZE; i < (victim_frame + 1) * FRAME_SIZE; i++)
+	{
+		shellmemory[i].var = "none";
+		shellmemory[i].value = "none";
+	}
+
+	return victim_frame;
+};

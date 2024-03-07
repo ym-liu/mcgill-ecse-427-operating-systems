@@ -26,6 +26,24 @@ int process_initialize(char *filename)
     strcpy(script_in_backing_store, "./backing_store/");
     strcat(script_in_backing_store, filename);
 
+    FILE *script_in_backing_store_fp = fopen(script_in_backing_store, "r");
+    if (script_in_backing_store_fp != NULL)
+    { // if file exists, rename in backing store
+        int i = 0;
+        while (script_in_backing_store_fp != NULL)
+        {
+            i++;
+            char str_i[5];
+            sprintf(str_i, "%i", i);
+
+            strcpy(script_in_backing_store, "./backing_store/");
+            strcat(script_in_backing_store, filename);
+            strcat(script_in_backing_store, str_i);
+
+            script_in_backing_store_fp = fopen(script_in_backing_store, "r");
+        }
+    }
+    // copy into backing store
     char copy_into_backing_store[100];
     strcpy(copy_into_backing_store, "cp ");
     strcat(copy_into_backing_store, filename);
@@ -36,7 +54,7 @@ int process_initialize(char *filename)
     // close original script files
     fclose(script_fp);
     // open files in backing store
-    FILE *script_in_backing_store_fp = fopen(script_in_backing_store, "r+");
+    script_in_backing_store_fp = fopen(script_in_backing_store, "r");
     if (script_in_backing_store_fp == NULL)
         return FILE_DOES_NOT_EXIST;
 
@@ -62,13 +80,13 @@ int process_initialize(char *filename)
 
     PCB *newPCB = makePCB_withPageTable(page_table);
 
-    // for debugging purposes
+    /*// for debugging purposes
     printf("PAGE TABLE for %s = [", filename);
     for (int i = 0; i < PAGE_TABLE_SIZE - 1; i++)
     {
         printf("%i, ", newPCB->page_table[i]);
     }
-    printf("%i]\n\n", newPCB->page_table[PAGE_TABLE_SIZE - 1]);
+    printf("%i]\n\n", newPCB->page_table[PAGE_TABLE_SIZE - 1]);*/
 
     QueueNode *node = malloc(sizeof(QueueNode));
     node->pcb = newPCB;
@@ -78,29 +96,6 @@ int process_initialize(char *filename)
     fclose(script_in_backing_store_fp);
     return 0;
 }
-
-/*int shell_process_initialize()
-{
-    // Note that "You can assume that the # option will only be used in batch mode."
-    // So we know that the input is a file, we can directly load the file into ram
-    int *start = (int *)malloc(sizeof(int));
-    int *end = (int *)malloc(sizeof(int));
-    int error_code = 0;
-    error_code = load_file(stdin, start, end, "_SHELL");
-    if (error_code != 0)
-    {
-        return error_code;
-    }
-    PCB *newPCB = makePCB(*start, *end);
-    newPCB->priority = true;
-    QueueNode *node = malloc(sizeof(QueueNode));
-    node->pcb = newPCB;
-
-    ready_queue_add_to_head(node);
-
-    freopen("/dev/tty", "r", stdin);
-    return 0;
-}*/
 
 bool execute_process(QueueNode *node, int quanta)
 {
@@ -126,9 +121,10 @@ bool execute_process(QueueNode *node, int quanta)
             page_num++;
 
         // if we reach the end of the page table, do not execute anything
+        // TODO: possibly happens when P2 page is evicted due to P1 page fault
         if (page_num >= PAGE_TABLE_SIZE)
         {
-            printf("Could not locate program counter in page table for process with PID %i", pcb->pid);
+            printf("Could not locate program counter in page table for process with PID %i\n", pcb->pid);
             terminate_process(node);
             in_background = false;
             return true;
@@ -147,6 +143,16 @@ bool execute_process(QueueNode *node, int quanta)
             {
                 pcb->PC = pcb->page_table[page_num] * FRAME_SIZE; // update PC to next page
                 line = mem_get_value_at_line(pcb->PC++);          // get line
+            }
+            // TODO: if there is no next page in the page table, handle page fault
+            else if (page_num < PAGE_TABLE_SIZE && pcb->page_table[page_num] == -1)
+            {
+                // if (!handle_page_fault()) // if there is no next page in the backing store
+                //{
+                terminate_process(node);
+                in_background = false;
+                return true;
+                //}
             }
             // if we reached the end
             else
@@ -195,7 +201,7 @@ void *scheduler_FCFS()
     return 0;
 }
 
-void *scheduler_SJF()
+/*void *scheduler_SJF()
 {
     QueueNode *cur;
     while (true)
@@ -211,9 +217,9 @@ void *scheduler_SJF()
         execute_process(cur, MAX_INT);
     }
     return 0;
-}
+}*/
 
-void *scheduler_AGING_alternative()
+/*void *scheduler_AGING_alternative()
 {
     QueueNode *cur;
     while (true)
@@ -264,7 +270,7 @@ void *scheduler_AGING()
         }
     }
     return 0;
-}
+}*/
 
 void *scheduler_RR(void *arg)
 {
@@ -290,8 +296,8 @@ void *scheduler_RR(void *arg)
 
 int schedule_by_policy(char *policy)
 { //, bool mt){
-    if (strcmp(policy, "FCFS") != 0 && strcmp(policy, "SJF") != 0 &&
-        strcmp(policy, "RR") != 0 && strcmp(policy, "AGING") != 0 && strcmp(policy, "RR30") != 0)
+    if (strcmp(policy, "FCFS") != 0 /*&& strcmp(policy, "SJF") != 0*/ &&
+        strcmp(policy, "RR") != 0 /*&& strcmp(policy, "AGING") != 0*/ && strcmp(policy, "RR30") != 0)
     {
         return SCHEDULING_ERROR;
     }
@@ -304,19 +310,19 @@ int schedule_by_policy(char *policy)
     {
         scheduler_FCFS();
     }
-    else if (strcmp("SJF", policy) == 0)
+    /*else if (strcmp("SJF", policy) == 0)
     {
         scheduler_SJF();
-    }
+    }*/
     else if (strcmp("RR", policy) == 0)
     {
         arg[0] = 2;
         scheduler_RR((void *)arg);
     }
-    else if (strcmp("AGING", policy) == 0)
+    /*else if (strcmp("AGING", policy) == 0)
     {
         scheduler_AGING();
-    }
+    }*/
     else if (strcmp("RR30", policy) == 0)
     {
         arg[0] = 30;

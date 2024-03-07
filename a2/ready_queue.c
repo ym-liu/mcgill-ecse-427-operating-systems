@@ -77,13 +77,13 @@ void print_ready_queue()
 void terminate_process(QueueNode *node)
 {
     // node should not be in the ready queue
-    for (int i = 0; i < PAGE_TABLE_SIZE; i++) // iterate through the page table
+    /*for (int i = 0; i < PAGE_TABLE_SIZE; i++) // iterate through the page table
     {
         int frame_num = node->pcb->page_table[i];
         if (frame_num >= 0 && frame_num < FRAME_STORE_SIZE) // ensure valid frame#
             mem_free_lines_between(frame_num * FRAME_SIZE,
                                    ((frame_num + 1) * FRAME_SIZE) - 1);
-    }
+    }*/
     free(node);
 }
 
@@ -100,7 +100,19 @@ QueueNode *ready_queue_pop_head()
     return tmp;
 }
 
-void ready_queue_decrement_job_length_score()
+QueueNode *ready_queue_peek_head()
+{
+    return head;
+}
+
+QueueNode *ready_queue_peek_next(QueueNode *current)
+{
+    if (current == NULL)
+        return NULL;
+    return current->next;
+}
+
+/*void ready_queue_decrement_job_length_score()
 {
     QueueNode *cur;
     cur = head;
@@ -110,7 +122,7 @@ void ready_queue_decrement_job_length_score()
             cur->pcb->job_length_score--;
         cur = cur->next;
     }
-}
+}*/
 
 void ready_queue_swap_with_next(QueueNode *toSwap)
 {
@@ -136,7 +148,7 @@ void ready_queue_swap_with_next(QueueNode *toSwap)
     toSwap->next = afterNext;
 }
 
-bool swap_needed(QueueNode *cur)
+/*bool swap_needed(QueueNode *cur)
 {
     QueueNode *next = cur->next;
     if (!next)
@@ -161,9 +173,9 @@ bool swap_needed(QueueNode *cur)
         else
             return false;
     }
-}
+}*/
 
-void sort_ready_queue()
+/*void sort_ready_queue()
 {
     if (head == NULL)
         return;
@@ -186,16 +198,16 @@ void sort_ready_queue()
             }
         }
     }
-}
+}*/
 
-QueueNode *ready_queue_pop_shortest_job()
+/*QueueNode *ready_queue_pop_shortest_job()
 {
     sort_ready_queue();
     QueueNode *node = ready_queue_pop_head();
     return node;
-}
+}*/
 
-int ready_queue_get_shortest_job_score()
+/*int ready_queue_get_shortest_job_score()
 {
     QueueNode *cur = head;
     int shortest = MAX_INT;
@@ -208,9 +220,9 @@ int ready_queue_get_shortest_job_score()
         cur = cur->next;
     }
     return shortest;
-}
+}*/
 
-void ready_queue_promote(int score)
+/*void ready_queue_promote(int score)
 {
     if (head->pcb->job_length_score == score)
         return;
@@ -228,4 +240,4 @@ void ready_queue_promote(int score)
     cur->next = cur->next->next;
     next->next = head;
     head = next;
-}
+}*/

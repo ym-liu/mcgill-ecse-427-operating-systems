@@ -12,12 +12,14 @@ void ready_queue_add_to_tail(QueueNode *node);
 void print_ready_queue();
 void terminate_process(QueueNode *node);
 bool is_ready_empty();
-QueueNode *ready_queue_pop_shortest_job();
-void ready_queue_head_to_tail();
+/*QueueNode *ready_queue_pop_shortest_job();*/
+void ready_queue_head_to_tail(); // not yet defined in ready_queue.c
 void ready_queue_add_to_head(QueueNode *node);
 QueueNode *ready_queue_pop_head();
-void ready_queue_decrement_job_length_score();
-void sort_ready_queue();
-int ready_queue_get_shortest_job_score();
-void ready_queue_promote(int score);
+QueueNode *ready_queue_peek_head();
+QueueNode *ready_queue_peek_next(QueueNode *current);
+/*void ready_queue_decrement_job_length_score();*/
+/*void sort_ready_queue();*/
+/*int ready_queue_get_shortest_job_score();*/
+/*void ready_queue_promote(int score);*/
 #endif

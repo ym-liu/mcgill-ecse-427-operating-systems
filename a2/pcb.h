@@ -2,28 +2,7 @@
 #define PCB_H
 #include <stdbool.h>
 
-// size of a single frame
-// extern const int FRAME_SIZE;
-
-#define PAGE_TABLE_SIZE 4
-
-/*
- * Struct:  PAGE
- * --------------------
- * index:
- * valid_bits:
- * page_index:
- * page_pid:
- */
-/*
-typedef struct PAGE PAGE;
-struct PAGE
-{
- int index[FRAME_SIZE];
- int valid_bits[FRAME_SIZE];
- int page_index;
- int page_pid;
-};*/
+#define PAGE_TABLE_SIZE 20
 
 /*
  * Struct:  PCB
