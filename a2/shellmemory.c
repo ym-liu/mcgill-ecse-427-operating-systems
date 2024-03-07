@@ -277,9 +277,10 @@ int load_page_into_frame_store(FILE *fp, char *filename, int *page_table, int pa
 			break;
 		}
 		// if we finished loading a full page, then break
-		else if (((j - i) % FRAME_SIZE == 0 && j != i))
+		else if ((j - i) % FRAME_SIZE == 0 && j != i)
 		{
-			// printf("WHY BREAK: finished loading a full page\n");
+			// printf("WHY BREAK: finished loading a full page.  ");
+			// printf("i: %i, j: %i\n", i, j);
 			hasLoadedFullPage = true;
 			break;
 		}

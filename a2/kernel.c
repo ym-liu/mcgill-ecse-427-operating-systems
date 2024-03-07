@@ -95,7 +95,6 @@ int process_initialize(char *filename)
 
     ready_queue_add_to_tail(node);
 
-    fclose(script_in_backing_store_fp);
     return 0;
 }
 
@@ -151,12 +150,16 @@ bool execute_process(QueueNode *node, int quanta)
             // if there is no next page in the page table, handle page fault
             else if (page_num < PAGE_TABLE_SIZE && (pcb->page_table[page_num] == -1 && !feof(pcb->fp)))
             {
-                if (!handle_page_fault(pcb->fp, pcb->filename, pcb->page_table, page_num)) // if there is no next page in the backing store
+                // if there is no next page in the backing store, terminate process
+                if (!handle_page_fault(pcb->fp, pcb->filename, pcb->page_table, page_num))
                 {
                     terminate_process(node);
                     in_background = false;
                     return true;
                 }
+
+                pcb->PC = pcb->page_table[page_num] * FRAME_SIZE; // update PC to next page
+                line = mem_get_value_at_line(pcb->PC++);          // get line
             }
             // if we reached the end
             else
