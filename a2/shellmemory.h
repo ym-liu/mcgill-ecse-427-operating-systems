@@ -17,6 +17,6 @@ char *mem_get_value_at_line(int index);
 void mem_free_lines_between(int start, int end);
 void printShellMemory();
 void printFrameStore();
-int pick_victim_frame();
+int pick_victim_frame(int *page_table);
 void increment_lastused(int line_num);
 #endif

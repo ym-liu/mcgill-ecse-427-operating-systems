@@ -104,6 +104,13 @@ bool execute_process(QueueNode *node, int quanta)
 
     char *line = NULL;
     PCB *pcb = node->pcb;
+    /*// for debugging purposes
+    printf("PAGE TABLE for %s = [", node->pcb->filename);
+    for (int i = 0; i < PAGE_TABLE_SIZE - 1; i++)
+    {
+        printf("%i, ", node->pcb->page_table[i]);
+    }
+    printf("%i]\n\n", node->pcb->page_table[PAGE_TABLE_SIZE - 1]);*/
 
     // find where PC is in page table
     int page_num = 0;

@@ -258,7 +258,7 @@ int load_page_into_frame_store(FILE *fp, char *filename, int *page_table, int pa
 	if (!(feof(fp)) && hasSpaceLeft == 0)
 	{
 		// pick victim frame to evict and evict it
-		i = pick_victim_frame() * FRAME_SIZE;
+		i = pick_victim_frame(page_table) * FRAME_SIZE;
 		// and from here, we can bring missing page from backing store into frame store
 	}
 
@@ -372,8 +372,9 @@ void mem_free_lines_between(int start, int end)
 	}
 }
 
+// page_table: used to check if victim frame is from one's own page table
 // returns victim frame
-int pick_victim_frame()
+int pick_victim_frame(int *page_table)
 {
 	/*// PICK RANDOM FRAME
 	srand(time(NULL));
@@ -393,6 +394,14 @@ int pick_victim_frame()
 	// find victim frame in ready_queue
 	QueueNode *current = ready_queue_peek_head();
 	bool frameNumFound = false;
+
+	// check if victim frame is from self
+	for (int i = 0; i < PAGE_TABLE_SIZE; i++)
+	{
+		if (page_table[i] == victim_frame)
+			page_table[i] = -1;
+	}
+
 	while (current != NULL)
 	{
 		// iterate through the current node's page table to find victim_frame
