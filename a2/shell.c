@@ -11,17 +11,6 @@
 int MAX_USER_INPUT = 1000;
 int parseInput(char ui[]);
 
-#ifndef X
-#define X 500 // Default value for frameSize
-#endif
-
-#ifndef Y
-#define Y 500 // Default value for varMemSize
-#endif
-
-int frameSize = X;
-int varMemSize = Y;
-
 int main(int argc, char *argv[])
 {
     // CREATE EMPTY BACKING STORE DIRECTORY
@@ -31,6 +20,7 @@ int main(int argc, char *argv[])
     system("mkdir ./backing_store");
 
     printf("%s\n", "Shell v2.0");
+    printf("Frame Store Size = %d; Variable Store Size = %d\n", THRESHOLD, VARMEMSIZE);
 
     char prompt = '$';              // Shell prompt
     char userInput[MAX_USER_INPUT]; // user's input stored here
@@ -41,8 +31,7 @@ int main(int argc, char *argv[])
         userInput[i] = '\0';
 
     // init shell memory
-    mem_init(frameSize, varMemSize);
-    printf("Frame Store Size = %d; Variable Store Size = %d\n", frameSize, varMemSize);
+    mem_init();
 
     while (1)
     {

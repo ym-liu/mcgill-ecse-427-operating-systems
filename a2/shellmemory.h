@@ -1,10 +1,11 @@
 #ifndef SHELLMEMORY_H
 #define SHELLMEMORY_H
 
-#define SHELL_MEM_LENGTH 1000
-#define FRAME_STORE_SIZE 7                        // size of frame store (# of pages in frame store)
+// #define VARMEMSIZE // num of lines in variable store
+// #define THRESHOLD  // num of lines in frame store; threshold separating frame store from variable store
 #define FRAME_SIZE 3                              // size of a single frame (# of lines in a page)
-#define THRESHOLD (FRAME_STORE_SIZE * FRAME_SIZE) // threshold separating frame store from variable store
+#define FRAME_STORE_SIZE (THRESHOLD / FRAME_SIZE) // size of frame store (# of pages in frame store)
+#define SHELL_MEM_LENGTH (VARMEMSIZE + THRESHOLD)
 
 void mem_init();
 void variable_store_mem_init();
