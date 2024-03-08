@@ -11,7 +11,6 @@ void mem_init();
 void variable_store_mem_init();
 char *mem_get_value(char *var);
 void mem_set_value(char *var, char *value);
-int load_file_into_frame_store(FILE *fp, char *fileID, int *page_table);
 int load_page_into_frame_store(FILE *fp, char *fileID, int *page_table, int page_num);
 char *mem_get_value_at_line(int index);
 void mem_free_lines_between(int start, int end);

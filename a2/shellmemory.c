@@ -153,88 +153,6 @@ void printFrameStore()
  * returns: error code, 21: no space left
  */
 
-int load_file_into_frame_store(FILE *fp, char *filename, int *page_table)
-{
-	char *line;
-	size_t i;
-	int error_code = 0;
-	bool hasSpaceLeft = false;
-	i = 0;
-	int num_of_pages = 0;
-
-	// find first available hole
-	for (i; i < THRESHOLD; i++)
-	{
-		if (strcmp(shellmemory[i].var, "none") == 0)
-		{
-			hasSpaceLeft = true;
-			break;
-		}
-	}
-
-	// shell memory is full
-	if (hasSpaceLeft == 0)
-	{
-		error_code = 21;
-		return error_code;
-	}
-
-	for (size_t j = i; j < THRESHOLD; j++)
-	{
-		if (feof(fp))
-		{
-			// pad the rest of the page
-			while ((j - i) % FRAME_SIZE != 0)
-			{
-				shellmemory[j].var = strdup(filename);
-				shellmemory[j].value = strndup("none", 4 * sizeof(char));
-				j++;
-			}
-
-			break;
-		}
-		else
-		{
-			line = calloc(1, THRESHOLD);
-			if (fgets(line, THRESHOLD, fp) == NULL)
-			{
-				continue;
-			}
-			shellmemory[j].var = strdup(filename);
-			shellmemory[j].value = strndup(line, strlen(line));
-
-			if ((j - i) % FRAME_SIZE == 0)
-			{
-				// store frame# in page table
-				if (num_of_pages < PAGE_TABLE_SIZE) // ensure page table large enough
-				{
-					page_table[num_of_pages] = j / FRAME_SIZE;
-					num_of_pages++;
-				}
-				else
-					printf("Page table not large enough to record frame# %i\n", j / FRAME_SIZE);
-			}
-
-			free(line);
-		}
-	}
-
-	// no space left to load the entire file into shell memory
-	if (!feof(fp))
-	{
-		error_code = 21;
-		// clean up the file in memory
-		for (int j = 1; i <= THRESHOLD; i++)
-		{
-			shellmemory[j].var = "none";
-			shellmemory[j].value = "none";
-		}
-		return error_code;
-	}
-	// printShellMemory();
-	return error_code;
-}
-
 int load_page_into_frame_store(FILE *fp, char *filename, int *page_table, int page_num)
 {
 	char *line;
@@ -391,10 +309,6 @@ int pick_victim_frame(int *page_table)
 	}
 
 	// UPDATE PAGE TABLE
-	// find victim frame in ready_queue
-	QueueNode *current = ready_queue_peek_head();
-	bool frameNumFound = false;
-
 	// check if victim frame is from self
 	for (int i = 0; i < PAGE_TABLE_SIZE; i++)
 	{
@@ -402,6 +316,9 @@ int pick_victim_frame(int *page_table)
 			page_table[i] = -1;
 	}
 
+	// find victim frame in ready_queue
+	QueueNode *current = ready_queue_peek_head();
+	bool frameNumFound = false;
 	while (current != NULL)
 	{
 		// iterate through the current node's page table to find victim_frame
@@ -414,13 +331,6 @@ int pick_victim_frame(int *page_table)
 				// update victim frame's PCB's page table
 				current->pcb->page_table[i] = -1;
 
-				/*// for debugging purposes
-				printf("PAGE TABLE for PID %i after eviction = [", current->pcb->pid);
-				for (int k = 0; k < PAGE_TABLE_SIZE - 1; k++)
-				{
-					printf("%i, ", current->pcb->page_table[k]);
-				}
-				printf("%i]\n\n", current->pcb->page_table[PAGE_TABLE_SIZE - 1]);*/
 				break;
 			}
 		}
@@ -432,6 +342,13 @@ int pick_victim_frame(int *page_table)
 	if (!frameNumFound)
 	{ // ...then what?
 	}
+	/*// for debugging purposes
+	printf("PAGE TABLE for %s after eviction = [", current->pcb->filename);
+	for (int k = 0; k < PAGE_TABLE_SIZE - 1; k++)
+	{
+		printf("%i, ", current->pcb->page_table[k]);
+	}
+	printf("%i]\n\n", current->pcb->page_table[PAGE_TABLE_SIZE - 1]);*/
 
 	// PRINT PAGE FAULT
 	printf("Page fault! Victim page contents:\n");

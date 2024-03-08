@@ -111,6 +111,7 @@ bool execute_process(QueueNode *node, int quanta)
         printf("%i, ", node->pcb->page_table[i]);
     }
     printf("%i]\n\n", node->pcb->page_table[PAGE_TABLE_SIZE - 1]);*/
+    // printf("PC for %s is currently at %i\n\n", pcb->filename, pcb->PC);
 
     // find where PC is in page table
     int page_num = 0;
@@ -120,12 +121,12 @@ bool execute_process(QueueNode *node, int quanta)
         int line_num = 0;
         for (line_num; line_num < FRAME_SIZE; line_num++) // go line-by-line
         {
-            if (pcb->PC == (pcb->page_table[page_num] * FRAME_SIZE) + line_num)
+            if (pcb->PC == (pcb->page_table[page_num] * FRAME_SIZE) + line_num && pcb->page_table[page_num] != -1)
                 break;
         }
 
         // if we find PC, exit while-loop; if we did not find PC, go to next page
-        if (pcb->PC == (pcb->page_table[page_num] * FRAME_SIZE) + line_num)
+        if (pcb->PC == (pcb->page_table[page_num] * FRAME_SIZE) + line_num && pcb->page_table[page_num] != -1)
             break;
         else
             page_num++;
@@ -134,7 +135,7 @@ bool execute_process(QueueNode *node, int quanta)
         // TODO: possibly happens when P2 page is evicted due to P1 page fault
         if (page_num >= PAGE_TABLE_SIZE)
         {
-            printf("Could not locate program counter in page table for process with PID %i\n", pcb->pid);
+            printf("Could not locate program counter in page table for %s\n", pcb->filename);
             terminate_process(node);
             in_background = false;
             return true;
@@ -156,7 +157,7 @@ bool execute_process(QueueNode *node, int quanta)
                 line = mem_get_value_at_line(pcb->PC++);          // get line
             }
             // if there is no next page in the page table, handle page fault
-            else if (page_num < PAGE_TABLE_SIZE && (pcb->page_table[page_num] == -1 && !feof(pcb->fp)))
+            else if (page_num < PAGE_TABLE_SIZE && (pcb->page_table[page_num] == -1)) //&& !feof(pcb->fp)
             {
                 // if there is no next page in the backing store, terminate process
                 if (!handle_page_fault(pcb->fp, pcb->filename, pcb->page_table, page_num))
