@@ -134,6 +134,7 @@ bool execute_process(QueueNode *node, int quanta)
         }
     }
 
+    // execute lines starting at PC
     for (int i = 0; i < quanta; i++)
     {
         // get line at PC
@@ -173,6 +174,7 @@ bool execute_process(QueueNode *node, int quanta)
         else
             line = mem_get_value_at_line(pcb->PC++);
 
+        // execute line
         in_background = true;
         if (pcb->priority)
         {
@@ -185,6 +187,7 @@ bool execute_process(QueueNode *node, int quanta)
             return true;
         }
         parseInput(line);
+        increment_lastused(pcb->PC - 1);
         in_background = false;
     }
 
