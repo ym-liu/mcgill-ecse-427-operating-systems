@@ -160,6 +160,7 @@ int load_page_into_frame_store(FILE *fp, char *filename, int *page_table, int pa
 	int error_code = 21;
 	bool hasSpaceLeft = false;
 	bool hasLoadedFullPage = false;
+	bool handlesPageFault = false;
 	i = 0;
 
 	// find first available hole
@@ -177,6 +178,7 @@ int load_page_into_frame_store(FILE *fp, char *filename, int *page_table, int pa
 	{
 		// pick victim frame to evict and evict it
 		i = pick_victim_frame(page_table) * FRAME_SIZE;
+		handlesPageFault = true;
 		// and from here, we can bring missing page from backing store into frame store
 	}
 
@@ -261,7 +263,7 @@ int load_page_into_frame_store(FILE *fp, char *filename, int *page_table, int pa
 		return error_code;
 	}*/
 	// printShellMemory();
-	// printFrameStore();
+	//  printFrameStore();
 	return error_code;
 }
 
@@ -361,8 +363,6 @@ int pick_victim_frame(int *page_table)
 		}
 		printf("%s", shellmemory[j].value);
 	}
-	if ((current != NULL && current->pcb != NULL && current->pcb->fp != NULL) && feof(current->pcb->fp))
-		printf("\n");
 	printf("End of victim page contents.\n");
 
 	// EVICT FRAME

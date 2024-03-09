@@ -135,10 +135,21 @@ bool execute_process(QueueNode *node, int quanta)
         // TODO: possibly happens when P2 page is evicted due to P1 page fault
         if (page_num >= PAGE_TABLE_SIZE)
         {
-            printf("Could not locate program counter in page table for %s\n", pcb->filename);
+            /*printf("Could not locate program counter in page table for %s\n", pcb->filename);
             terminate_process(node);
             in_background = false;
-            return true;
+            return true;*/
+            fseek(pcb->fp, -FRAME_SIZE, SEEK_CUR);
+            for (int i = 0; i < PAGE_TABLE_SIZE; i++)
+                pcb->page_table[i] = -1;
+            page_num = 0;
+
+            if (!handle_page_fault(pcb->fp, pcb->filename, pcb->page_table, page_num))
+            {
+                terminate_process(node);
+                in_background = false;
+                return true;
+            }
         }
     }
 
@@ -154,27 +165,27 @@ bool execute_process(QueueNode *node, int quanta)
             if (page_num < PAGE_TABLE_SIZE && (pcb->page_table[page_num] >= 0 && pcb->page_table[page_num] < FRAME_STORE_SIZE))
             {
                 pcb->PC = pcb->page_table[page_num] * FRAME_SIZE; // update PC to next page
-                line = mem_get_value_at_line(pcb->PC);            // get line
+                line = mem_get_value_at_line(pcb->PC++);          // get line
             }
             // if there is no next page in the page table, handle page fault
             else if (page_num < PAGE_TABLE_SIZE && (pcb->page_table[page_num] == -1)) //&& !feof(pcb->fp)
             {
+                // INTERRUPT CURRENT PROCESS,
+                // PLACE IT AT THE BACK OF THE READY QUEUE
+                QueueNode *current_node = ready_queue_pop_head();
+                if (current_node != NULL)
+                    ready_queue_add_to_tail(current_node);
+
                 // if there is no next page in the backing store, terminate process
                 if (!handle_page_fault(pcb->fp, pcb->filename, pcb->page_table, page_num))
                 {
-                    // INTERRUPT CURRENT PROCESS,
-                    // PLACE IT AT THE BACK OF THE READY QUEUE
-                    QueueNode *current_node = ready_queue_pop_head();
-                    if (current_node != NULL)
-                        ready_queue_add_to_tail(current_node);
-
                     terminate_process(node);
                     in_background = false;
                     return true;
                 }
 
                 pcb->PC = pcb->page_table[page_num] * FRAME_SIZE; // update PC to next page
-                line = mem_get_value_at_line(pcb->PC);            // get line
+                line = mem_get_value_at_line(pcb->PC++);          // get line
             }
             // if we reached the end
             else
@@ -186,46 +197,30 @@ bool execute_process(QueueNode *node, int quanta)
         }
         // if line is on same page, get line
         else
-            line = mem_get_value_at_line(pcb->PC);
-
-        // increment PC
-        // if PC++ is on next page, increment PC to next page
-        if (pcb->PC % FRAME_SIZE == 2)
         {
-            if (page_num < PAGE_TABLE_SIZE - 1)
-            {
-                page_num++; // next page
-                if (pcb->page_table[page_num] == -1)
-                {
-                    if (!handle_page_fault(pcb->fp, pcb->filename, pcb->page_table, page_num))
-                    {
-                        // execute last line
-                        in_background = false;
-                        if (pcb->priority)
-                        {
-                            pcb->priority = false;
-                        }
-                        if (strcmp(line, "none") == 0)
-                        { // if we reached a line that is padding
-                            terminate_process(node);
-                            return true;
-                        }
-                        parseInput(line);
-                        increment_lastused(pcb->PC - 1);
+            line = mem_get_value_at_line(pcb->PC++);
 
-                        // terminate process
-                        terminate_process(node);
-                        return true;
+            /*// increment PC
+            // if PC++ is on next page, increment PC to next page
+            if (pcb->PC % FRAME_SIZE == 2)
+            {
+                if (page_num < PAGE_TABLE_SIZE - 1)
+                {
+                    page_num++; // next page
+                    if (pcb->page_table[page_num] == -1)
+                    {
+                        // TODO
                     }
+                    pcb->PC = pcb->page_table[page_num] * FRAME_SIZE; // update PC to next page
                 }
-                pcb->PC = pcb->page_table[page_num] * FRAME_SIZE; // update PC to next page
+                else
+                    printf("Page table not large enough to search frame# %i\n", page_num + 1);
             }
+            // else, same page, so increment PC by 1
             else
-                printf("Page table not large enough to search frame# %i\n", page_num + 1);
+                pcb->PC++;*/
         }
-        // else, same page, so increment PC by 1
-        else
-            pcb->PC++;
+
         // printf("PC for %s after increment is at %i\n\n", pcb->filename, pcb->PC);
 
         // execute line

@@ -286,6 +286,12 @@ int exec(char *fname1, char *fname2, char *fname3)
 {
 	int error_code = 0;
 
+	if (fname2 == NULL && fname3 == NULL)
+	{
+		error_code = run(fname1);
+		return error_code;
+	}
+
 	if (fname1 != NULL)
 	{
 		error_code = process_initialize(fname1);
