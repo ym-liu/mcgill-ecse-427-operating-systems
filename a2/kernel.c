@@ -162,6 +162,12 @@ bool execute_process(QueueNode *node, int quanta)
                 // if there is no next page in the backing store, terminate process
                 if (!handle_page_fault(pcb->fp, pcb->filename, pcb->page_table, page_num))
                 {
+                    // INTERRUPT CURRENT PROCESS,
+                    // PLACE IT AT THE BACK OF THE READY QUEUE
+                    QueueNode *current_node = ready_queue_pop_head();
+                    if (current_node != NULL)
+                        ready_queue_add_to_tail(current_node);
+
                     terminate_process(node);
                     in_background = false;
                     return true;
@@ -193,8 +199,22 @@ bool execute_process(QueueNode *node, int quanta)
                 {
                     if (!handle_page_fault(pcb->fp, pcb->filename, pcb->page_table, page_num))
                     {
-                        terminate_process(node);
+                        // execute last line
                         in_background = false;
+                        if (pcb->priority)
+                        {
+                            pcb->priority = false;
+                        }
+                        if (strcmp(line, "none") == 0)
+                        { // if we reached a line that is padding
+                            terminate_process(node);
+                            return true;
+                        }
+                        parseInput(line);
+                        increment_lastused(pcb->PC - 1);
+
+                        // terminate process
+                        terminate_process(node);
                         return true;
                     }
                 }
@@ -202,9 +222,11 @@ bool execute_process(QueueNode *node, int quanta)
             }
             else
                 printf("Page table not large enough to search frame# %i\n", page_num + 1);
-        } // else, same page, so increment PC by 1
+        }
+        // else, same page, so increment PC by 1
         else
             pcb->PC++;
+        // printf("PC for %s after increment is at %i\n\n", pcb->filename, pcb->PC);
 
         // execute line
         in_background = true;
@@ -231,12 +253,6 @@ bool handle_page_fault(FILE *fp, char *filename, int *page_table, int page_num)
     // printf("-------- HANDLE_PAGE_FAULT_IS_CALLED --------\n");
 
     bool isInShellMemory = false;
-
-    // INTERRUPT CURRENT PROCESS,
-    // PLACE IT AT THE BACK OF THE READY QUEUE
-    QueueNode *current_node = ready_queue_pop_head();
-    if (current_node != NULL)
-        ready_queue_add_to_tail(current_node);
 
     // BRING MISSING PAGE FROM BACKING STORE INTO FRAME STORE
     // UPDATE PAGE TABLE
