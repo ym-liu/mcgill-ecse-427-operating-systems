@@ -259,6 +259,7 @@ static void find_hidden_data_in_files()
 {
   struct dir *dir = dir_open_root();
   struct dir_entry e;
+
   while (dir_readdir(dir, e.name))
   {
     struct inode *inode = inode_open(e.inode_sector);
@@ -266,19 +267,21 @@ static void find_hidden_data_in_files()
     {
       continue;
     }
+
     off_t length = inode_length(inode);
     off_t last_block_bytes = length % BLOCK_SECTOR_SIZE;
     if (last_block_bytes > 0 && last_block_bytes < BLOCK_SECTOR_SIZE)
     {
       char buffer[BLOCK_SECTOR_SIZE];
-      block_sector_t sector = bytes_to_sectors(length - 1);
-      block_read(fs_device, sector, buffer);
+      block_sector_t last_block_sector = bytes_to_sectors(length - 1);
+      block_read(fs_device, last_block_sector, buffer);
+
       char filename[25];
       snprintf(filename, sizeof(filename), "recovered2-%s.txt", e.name);
       FILE *fp = fopen(filename, "w");
       if (fp != NULL)
       {
-        fwrite(buffer + last_block_bytes, BLOCK_SECTOR_SIZE - last_block_bytes, 1, fp);
+        fwrite(buffer, 1, last_block_bytes, fp);
         fclose(fp);
       }
     }
