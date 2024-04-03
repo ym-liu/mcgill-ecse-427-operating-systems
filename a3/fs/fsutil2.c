@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 
 int copy_in(char *fname)
 {
@@ -156,16 +157,100 @@ void find_file(char *pattern)
   dir_close(directory);
 }
 
+static bool is_file_fragmented(struct inode *inode)
+{
+  if (inode == NULL || inode_length(inode) <= BLOCK_SECTOR_SIZE)
+  {
+    return false;
+  }
+
+  block_sector_t prev_sector = -1;
+  off_t length = inode_length(inode);
+  off_t offset;
+  for (offset = 0; offset < length; offset += BLOCK_SECTOR_SIZE)
+  {
+    block_sector_t sector = byte_to_sector(inode, offset);
+    if (prev_sector != (block_sector_t)-1 && sector > prev_sector + 3)
+    {
+      return true;
+    }
+    prev_sector = sector;
+  }
+
+  return false;
+}
+
 void fragmentation_degree()
 {
-  int free_sectors = num_free_sectors();
-  int total_sectors = block_size(fs_device);
-  int used_sectors = total_sectors - free_sectors;
-  printf("Fragmentation degree: %d%%\n", (100 * free_sectors) / used_sectors);
+  size_t fragmentable_files = 0;
+  size_t fragmented_files = 0;
+
+  struct file *file_iter = NULL;
+  while ((file_iter = next_file(file_iter)) != NULL)
+  {
+    struct inode *inode = file_get_inode(file_iter);
+    if (inode_is_directory(inode) || inode_length(inode) <= BLOCK_SECTOR_SIZE)
+    {
+      continue;
+    }
+
+    fragmentable_files++;
+    if (is_file_fragmented(inode))
+    {
+      fragmented_files++;
+    }
+  }
+
+  double fragmentation_degree = 0;
+  if (fragmentable_files > 0)
+  {
+    fragmentation_degree = (double)fragmented_files / fragmentable_files;
+  }
+
+  printf("Fragmentation Degree: %.2f%%\n", fragmentation_degree * 100);
+}
+
+static bool defragment_file(struct inode *inode)
+{
+  off_t length = inode_length(inode);
+  void *buffer = malloc(length);
+  if (buffer == NULL)
+  {
+    return false;
+  }
+
+  inode_read_at(inode, buffer, length, 0);
+
+  inode_deallocate(inode);
+
+  struct inode_disk *disk_inode = inode_disk(inode);
+  disk_inode->length = 0;
+  inode_reserve(disk_inode, length);
+  inode_write_at(inode, buffer, length, 0);
+
+  free(buffer);
+  return true;
 }
 
 int defragment()
 {
+
+  struct file *file_iter = NULL;
+  while ((file_iter = next_file(file_iter)) != NULL)
+  {
+    struct inode *inode = file_get_inode(file_iter);
+    if (inode_is_directory(inode))
+    {
+      continue;
+    }
+
+    if (is_file_fragmented(inode))
+    {
+      defragment_file(inode);
+    }
+  }
+
+  printf("Defragmentation completed.\n");
 }
 
 void recover(int flag)
