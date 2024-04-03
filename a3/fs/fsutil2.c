@@ -357,26 +357,20 @@ static void find_hidden_data_in_files()
       block_sector_t last_block_sector = bytes_to_sectors(length - 1);
       block_read(fs_device, last_block_sector, buffer);
 
-      bool has_non_null = false;
-      for (int i = 0; i < last_block_bytes; ++i)
+      char filename[25];
+      snprintf(filename, sizeof(filename), "recovered2-%s.txt", e.name);
+      FILE *fp = fopen(filename, "w");
+      if (fp != NULL)
       {
-        if (buffer[i] != '\0')
+        // Write only the non-null bytes to the output file
+        for (int i = 0; i < last_block_bytes; ++i)
         {
-          has_non_null = true;
-          break;
+          if (buffer[i] != '\0')
+          {
+            fputc(buffer[i], fp);
+          }
         }
-      }
-
-      if (has_non_null)
-      {
-        char filename[25];
-        snprintf(filename, sizeof(filename), "recovered2-%s.txt", e.name);
-        FILE *fp = fopen(filename, "w");
-        if (fp != NULL)
-        {
-          fwrite(buffer, 1, last_block_bytes, fp);
-          fclose(fp);
-        }
+        fclose(fp);
       }
     }
     inode_close(inode);
