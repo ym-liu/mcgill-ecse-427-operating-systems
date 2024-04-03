@@ -41,7 +41,17 @@ int copy_in(char *fname)
     printf("Warning: could only read %zu out of %ld bytes (reached end of file)\n", bytes_read, size);
   }
 
-  if (!filesys_create(fname, size, false))
+  // Determine the actual data length without including null characters
+  size_t actual_size = 0;
+  for (size_t i = 0; i < bytes_read; ++i)
+  {
+    if (buffer[i] != '\0')
+    {
+      ++actual_size;
+    }
+  }
+
+  if (!filesys_create(fname, actual_size, false))
   {
     free(buffer);
     return 9;
@@ -53,14 +63,18 @@ int copy_in(char *fname)
     free(buffer);
     return 10;
   }
-  if (file_write(dest_file, buffer, bytes_read) != bytes_read)
+
+  size_t bytes_written = file_write(dest_file, buffer, actual_size);
+  if (bytes_written != actual_size)
   {
     file_close(dest_file);
     free(buffer);
     return 11;
   }
+
   file_close(dest_file);
   free(buffer);
+  return 0;
 }
 
 int copy_out(char *fname)
