@@ -181,39 +181,43 @@ int count_fragmentable_files()
   return count;
 }
 
+static bool is_file_fragmented(struct inode *inode)
+{
+  block_sector_t prev_sector = -1;
+  for (int i = 0; i < bytes_to_sectors(inode_length(inode)); i++)
+  {
+    block_sector_t sector = bytes_to_sectors(i * BLOCK_SECTOR_SIZE);
+    if (prev_sector != -1 && (sector > prev_sector + 3 || sector < prev_sector))
+    {
+      return true;
+    }
+    prev_sector = sector;
+  }
+  return false;
+}
+
 int count_fragmented_files()
 {
-  int count = 0;
   struct dir *dir = dir_open_root();
   struct dir_entry e;
+  int fragmented_files = 0;
 
   while (dir_readdir(dir, e.name))
   {
     struct inode *inode = inode_open(e.inode_sector);
-    if (inode != NULL && !inode_is_directory(inode) && !inode_is_removed(inode))
+    if (inode != NULL)
     {
-      off_t last_sector = -1;
-      bool fragmented = false;
-      off_t file_size = inode_length(inode);
-      for (off_t i = 0; i < file_size; i += BLOCK_SECTOR_SIZE)
+      if (is_file_fragmented(inode))
       {
-        off_t sector = bytes_to_sectors(i);
-        if (last_sector != -1 && (sector - last_sector > 3 || sector < last_sector))
-        {
-          fragmented = true;
-          break;
-        }
-        last_sector = sector;
-      }
-      if (fragmented)
-      {
-        count++;
+        fragmented_files++;
       }
       inode_close(inode);
     }
   }
+
   dir_close(dir);
-  return count;
+
+  return fragmented_files;
 }
 
 void fragmentation_degree(void)
