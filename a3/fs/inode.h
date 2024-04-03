@@ -16,7 +16,8 @@ struct bitmap;
 
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
-struct inode_disk {
+struct inode_disk
+{
   /** Data sectors */
   block_sector_t direct_blocks[DIRECT_BLOCKS_COUNT];
   block_sector_t indirect_block;
@@ -28,7 +29,8 @@ struct inode_disk {
 };
 
 /* In-memory inode. */
-struct inode {
+struct inode
+{
   struct list_elem elem;  /* Element in inode list. */
   block_sector_t sector;  /* Sector number of disk location. */
   int open_cnt;           /* Number of openers. */
@@ -53,7 +55,6 @@ offset_t inode_length(const struct inode *);
 bool inode_is_directory(const struct inode *);
 bool inode_is_removed(const struct inode *);
 size_t bytes_to_sectors(offset_t size);
-
 block_sector_t *get_inode_data_sectors(struct inode *);
-
+block_sector_t byte_to_sector(const struct inode *inode, offset_t pos);
 #endif /* fs/inode.h */

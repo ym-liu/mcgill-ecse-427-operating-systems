@@ -188,11 +188,10 @@ int count_fragmented_files()
   struct dir_entry e;
 
   while (dir_readdir(dir, e.name))
-  {
+  { // Read each directory entry.
     struct inode *inode = inode_open(e.inode_sector);
     if (inode != NULL && !inode_is_directory(inode) && !inode_is_removed(inode))
     {
-      printf(inode);
       bool is_fragmented = false;
       block_sector_t previous_sector = -1;
       off_t file_length = inode_length(inode);
@@ -200,12 +199,10 @@ int count_fragmented_files()
 
       for (off_t i = 0; i < num_sectors; ++i)
       {
-        block_sector_t current_sector = bytes_to_sectors(i * BLOCK_SECTOR_SIZE);
-        printf(current_sector);
+        block_sector_t current_sector = byte_to_sector(inode, i * BLOCK_SECTOR_SIZE);
         if (previous_sector != (block_sector_t)-1 &&
             (current_sector > previous_sector + 3 || current_sector < previous_sector - 3))
         {
-
           is_fragmented = true;
           break;
         }
@@ -221,8 +218,8 @@ int count_fragmented_files()
     }
   }
 
-  dir_close(dir);
-  return count;
+  dir_close(dir); // Close the root directory once done.
+  return count;   // Return the count of fragmented files.
 }
 
 void fragmentation_degree(void)
