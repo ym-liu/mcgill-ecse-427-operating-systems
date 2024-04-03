@@ -157,117 +157,125 @@ void find_file(char *pattern)
   dir_close(directory);
 }
 
-static bool is_file_fragmented(struct inode *inode)
-{
-  if (inode == NULL || inode_length(inode) <= BLOCK_SECTOR_SIZE)
-  {
-    return false;
-  }
-
-  block_sector_t prev_sector = -1;
-  off_t length = inode_length(inode);
-  off_t offset;
-  for (offset = 0; offset < length; offset += BLOCK_SECTOR_SIZE)
-  {
-    block_sector_t sector = byte_to_sector(inode, offset);
-    if (prev_sector != (block_sector_t)-1 && sector > prev_sector + 3)
-    {
-      return true;
-    }
-    prev_sector = sector;
-  }
-
-  return false;
-}
-
 void fragmentation_degree()
 {
-  size_t fragmentable_files = 0;
-  size_t fragmented_files = 0;
-
-  struct file *file_iter = NULL;
-  while ((file_iter = next_file(file_iter)) != NULL)
-  {
-    struct inode *inode = file_get_inode(file_iter);
-    if (inode_is_directory(inode) || inode_length(inode) <= BLOCK_SECTOR_SIZE)
-    {
-      continue;
-    }
-
-    fragmentable_files++;
-    if (is_file_fragmented(inode))
-    {
-      fragmented_files++;
-    }
-  }
-
-  double fragmentation_degree = 0;
-  if (fragmentable_files > 0)
-  {
-    fragmentation_degree = (double)fragmented_files / fragmentable_files;
-  }
-
-  printf("Fragmentation Degree: %.2f%%\n", fragmentation_degree * 100);
-}
-
-static bool defragment_file(struct inode *inode)
-{
-  off_t length = inode_length(inode);
-  void *buffer = malloc(length);
-  if (buffer == NULL)
-  {
-    return false;
-  }
-
-  inode_read_at(inode, buffer, length, 0);
-
-  inode_deallocate(inode);
-
-  struct inode_disk *disk_inode = inode_disk(inode);
-  disk_inode->length = 0;
-  inode_reserve(disk_inode, length);
-  inode_write_at(inode, buffer, length, 0);
-
-  free(buffer);
-  return true;
+  int free_sectors = num_free_sectors();
+  int total_sectors = block_size(fs_device);
+  int used_sectors = total_sectors - free_sectors;
+  printf("Fragmentation degree: %d%%\n", (100 * free_sectors) / used_sectors);
 }
 
 int defragment()
 {
-
-  struct file *file_iter = NULL;
-  while ((file_iter = next_file(file_iter)) != NULL)
-  {
-    struct inode *inode = file_get_inode(file_iter);
-    if (inode_is_directory(inode))
-    {
-      continue;
-    }
-
-    if (is_file_fragmented(inode))
-    {
-      defragment_file(inode);
-    }
-  }
-
-  printf("Defragmentation completed.\n");
 }
+
+static void recover_deleted_files();
+static void recover_data_blocks();
+static void find_hidden_data_in_files();
 
 void recover(int flag)
 {
-  if (flag == 0)
-  { // recover deleted inodes
-
-    // TODO
+  switch (flag)
+  {
+  case 0:
+    recover_deleted_files();
+    break;
+  case 1:
+    recover_data_blocks();
+    break;
+  case 2:
+    find_hidden_data_in_files();
+    break;
+  default:
+    printf("Invalid flag for recovery.\n");
+    break;
   }
-  else if (flag == 1)
-  { // recover all non-empty sectors
+}
 
-    // TODO
+static void recover_deleted_files()
+{
+  struct bitmap *free_map = bitmap_create(block_size(fs_device) - 1);
+  free_map_open();
+  for (block_sector_t i = 0; i < bitmap_size(free_map); i++)
+  {
+    if (bitmap_test(free_map, i))
+    {
+      struct inode *inode = inode_open(i);
+      if (inode != NULL && inode_is_removed(inode))
+      {
+        char filename[20];
+        snprintf(filename, sizeof(filename), "recovered0-%d", i);
+        filesys_create(filename, 0, false);
+        struct file *file = filesys_open(filename);
+        if (file != NULL)
+        {
+          file_write(file, inode, sizeof(struct inode));
+          file_close(file);
+        }
+        inode_close(inode);
+      }
+    }
   }
-  else if (flag == 2)
-  { // data past end of file.
+  bitmap_destroy(free_map);
+}
 
-    // TODO
+static void recover_data_blocks()
+{
+  for (block_sector_t i = 4; i < block_size(fs_device); i++)
+  {
+    char buffer[BLOCK_SECTOR_SIZE];
+    block_read(fs_device, i, buffer);
+    bool is_non_zero = false;
+    for (unsigned j = 0; j < BLOCK_SECTOR_SIZE; j++)
+    {
+      if (buffer[j] != 0)
+      {
+        is_non_zero = true;
+        break;
+      }
+    }
+    if (is_non_zero)
+    {
+      char filename[25];
+      snprintf(filename, sizeof(filename), "recovered1-%d.txt", i);
+      FILE *fp = fopen(filename, "w");
+      if (fp != NULL)
+      {
+        fwrite(buffer, BLOCK_SECTOR_SIZE, 1, fp);
+        fclose(fp);
+      }
+    }
   }
+}
+
+static void find_hidden_data_in_files()
+{
+  struct dir *dir = dir_open_root();
+  struct dir_entry e;
+  while (dir_readdir(dir, e.name))
+  {
+    struct inode *inode = inode_open(e.inode_sector);
+    if (inode == NULL || inode_is_directory(inode) || inode_is_removed(inode))
+    {
+      continue;
+    }
+    off_t length = inode_length(inode);
+    off_t last_block_bytes = length % BLOCK_SECTOR_SIZE;
+    if (last_block_bytes > 0 && last_block_bytes < BLOCK_SECTOR_SIZE)
+    {
+      char buffer[BLOCK_SECTOR_SIZE];
+      block_sector_t sector = bytes_to_sectors(length - 1);
+      block_read(fs_device, sector, buffer);
+      char filename[25];
+      snprintf(filename, sizeof(filename), "recovered2-%s.txt", e.name);
+      FILE *fp = fopen(filename, "w");
+      if (fp != NULL)
+      {
+        fwrite(buffer + last_block_bytes, BLOCK_SECTOR_SIZE - last_block_bytes, 1, fp);
+        fclose(fp);
+      }
+    }
+    inode_close(inode);
+  }
+  dir_close(dir);
 }
