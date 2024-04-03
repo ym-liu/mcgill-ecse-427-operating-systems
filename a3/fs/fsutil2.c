@@ -194,36 +194,39 @@ void recover(int flag)
 
 static void recover_deleted_files()
 {
-  struct bitmap *free_map = bitmap_create(block_size(fs_device) - 1);
+  struct bitmap *used_sectors = bitmap_create(block_size(fs_device));
   free_map_open();
-  for (block_sector_t i = 0; i < bitmap_size(free_map); i++)
+
+  for (size_t i = 0; i < bitmap_size(used_sectors); i++)
   {
-    if (bitmap_test(free_map, i))
+    if (!bitmap_test(used_sectors, i))
     {
       struct inode *inode = inode_open(i);
       if (inode != NULL && inode_is_removed(inode))
       {
-        char filename[20];
-        snprintf(filename, sizeof(filename), "recovered0-%d", i);
-        filesys_create(filename, 0, false);
-        struct file *file = filesys_open(filename);
-        if (file != NULL)
-        {
-          file_write(file, inode, sizeof(struct inode));
-          file_close(file);
-        }
+
+        char filename[16];
+        snprintf(filename, sizeof(filename), "recovered0-%zu", i);
+
+        struct dir *root_dir = dir_open_root();
+        dir_add(root_dir, filename, i, false);
+        dir_close(root_dir);
+
+        inode->removed = false;
         inode_close(inode);
       }
     }
   }
-  bitmap_destroy(free_map);
+
+  bitmap_destroy(used_sectors);
 }
 
 static void recover_data_blocks()
 {
-  for (block_sector_t i = 4; i < block_size(fs_device); i++)
+  block_sector_t total_sectors = block_size(fs_device);
+  for (block_sector_t i = 4; i < total_sectors; i++)
   {
-    char buffer[BLOCK_SECTOR_SIZE];
+    char buffer[BLOCK_SECTOR_SIZE] = {0};
     block_read(fs_device, i, buffer);
     bool is_non_zero = false;
     for (unsigned j = 0; j < BLOCK_SECTOR_SIZE; j++)
@@ -241,13 +244,13 @@ static void recover_data_blocks()
       FILE *fp = fopen(filename, "w");
       if (fp != NULL)
       {
-        fwrite(buffer, BLOCK_SECTOR_SIZE, 1, fp);
+
+        fwrite(buffer, 1, BLOCK_SECTOR_SIZE, fp);
         fclose(fp);
       }
     }
   }
 }
-
 static void find_hidden_data_in_files()
 {
   struct dir *dir = dir_open_root();
