@@ -194,19 +194,17 @@ void recover(int flag)
 
 static void recover_deleted_files()
 {
-  struct bitmap *used_sectors = bitmap_create(block_size(fs_device));
   free_map_open();
 
-  for (size_t i = 0; i < bitmap_size(used_sectors); i++)
+  for (size_t i = 0; i < bitmap_size(free_map); i++)
   {
-    if (!bitmap_test(used_sectors, i))
+    if (!bitmap_test(free_map, i))
     {
       struct inode *inode = inode_open(i);
       if (inode != NULL && inode_is_removed(inode))
       {
-
         char filename[16];
-        snprintf(filename, sizeof(filename), "recovered0-%zu", i);
+        snprintf(filename, sizeof(filename), "recovered0-%d", i);
 
         struct dir *root_dir = dir_open_root();
         dir_add(root_dir, filename, i, false);
@@ -218,7 +216,7 @@ static void recover_deleted_files()
     }
   }
 
-  bitmap_destroy(used_sectors);
+  free_map_close();
 }
 
 static void recover_data_blocks()
