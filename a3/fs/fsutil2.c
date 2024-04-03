@@ -184,10 +184,10 @@ int count_fragmentable_files()
 static bool is_file_fragmented(struct inode *inode)
 {
   block_sector_t prev_sector = -1;
-  off_t file_size = inode_length(inode);
-  for (off_t i = 0; i < file_size; i += BLOCK_SECTOR_SIZE)
+  off_t length = inode_length(inode);
+  for (off_t offset = 0; offset < length; offset += BLOCK_SECTOR_SIZE)
   {
-    block_sector_t sector = bytes_to_sectors(i);
+    block_sector_t sector = offset / BLOCK_SECTOR_SIZE;
     if (prev_sector != -1 && (sector > prev_sector + 3 || sector < prev_sector))
     {
       return true;
