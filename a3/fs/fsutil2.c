@@ -33,25 +33,10 @@ int copy_in(char *fname)
     return 1;
   }
 
-  size_t bytes_read = fread(buffer, 1, size, source_file);
+  fread(buffer, 1, size, source_file);
   fclose(source_file);
 
-  if (bytes_read != size)
-  {
-    printf("Warning: could only read %zu out of %ld bytes (reached end of file)\n", bytes_read, size);
-  }
-
-  // Determine the actual data length without including null characters
-  size_t actual_size = 0;
-  for (size_t i = 0; i < bytes_read; ++i)
-  {
-    if (buffer[i] != '\0')
-    {
-      ++actual_size;
-    }
-  }
-
-  if (!filesys_create(fname, actual_size, false))
+  if (!filesys_create(fname, size, false))
   {
     free(buffer);
     return 9;
@@ -64,8 +49,7 @@ int copy_in(char *fname)
     return 10;
   }
 
-  size_t bytes_written = file_write(dest_file, buffer, actual_size);
-  if (bytes_written != actual_size)
+  if (file_write(dest_file, buffer, size) != size)
   {
     file_close(dest_file);
     free(buffer);
@@ -74,7 +58,6 @@ int copy_in(char *fname)
 
   file_close(dest_file);
   free(buffer);
-  return 0;
 }
 
 int copy_out(char *fname)
