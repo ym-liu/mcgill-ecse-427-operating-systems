@@ -38,7 +38,7 @@ int copy_in(char *fname)
 
   if (bytes_read != size)
   {
-    printf("Warning: could only write %zu out of %ld bytes (reached end of file)\n", bytes_read, size);
+    printf("Warning: could only read %zu out of %ld bytes (reached end of file)\n", bytes_read, size);
   }
 
   if (!filesys_create(fname, size, false))
@@ -53,7 +53,7 @@ int copy_in(char *fname)
     free(buffer);
     return 10;
   }
-  if (file_write(dest_file, buffer, size) != size)
+  if (file_write(dest_file, buffer, bytes_read) != bytes_read)
   {
     file_close(dest_file);
     free(buffer);
