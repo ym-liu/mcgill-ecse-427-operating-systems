@@ -198,7 +198,7 @@ int count_fragmented_files()
       for (off_t i = 0; i < file_size; i += BLOCK_SECTOR_SIZE)
       {
         off_t sector = bytes_to_sectors(i);
-        if (last_sector != -1 && sector - last_sector > 3)
+        if (last_sector != -1 && (sector - last_sector > 3 || sector < last_sector))
         {
           fragmented = true;
           break;
