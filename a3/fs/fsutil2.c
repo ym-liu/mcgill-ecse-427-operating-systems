@@ -159,31 +159,26 @@ void find_file(char *pattern)
 
 int count_fragmentable_files()
 {
-  int num_fragmentable_files = 0;
-  struct bitmap *used_sectors = bitmap_create(block_size(fs_device));
+  int count = 0;
+  struct dir *dir = dir_open_root();
+  struct dir_entry e;
 
-  for (size_t i = 0; i < bitmap_size(used_sectors); i++)
+  while (dir_readdir(dir, e.name))
   {
-    if (bitmap_test(used_sectors, i))
+    struct inode *inode = inode_open(e.inode_sector);
+    if (inode != NULL && !inode_is_directory(inode) && !inode_is_removed(inode))
     {
-      struct inode *inode = inode_open(i);
-      if (inode != NULL && !inode_is_directory(inode) && !inode_is_removed(inode))
+      off_t file_size = inode_length(inode);
+      off_t last_block_size = file_size % BLOCK_SECTOR_SIZE;
+      if (last_block_size > 0 && last_block_size < BLOCK_SECTOR_SIZE)
       {
-        off_t length = inode_length(inode);
-        off_t num_sectors = bytes_to_sectors(length);
-
-        off_t total_blocks = (length / BLOCK_SECTOR_SIZE);
-
-        if (total_blocks > DIRECT_BLOCKS_COUNT)
-        {
-          num_fragmentable_files++;
-        }
-        inode_close(inode);
+        count++;
       }
+      inode_close(inode);
     }
   }
-  bitmap_destroy(used_sectors);
-  return num_fragmentable_files;
+  dir_close(dir);
+  return count;
 }
 
 int count_total_files()
