@@ -181,44 +181,55 @@ int count_fragmentable_files()
   return count;
 }
 
-int count_total_files()
+int count_fragmented_files()
 {
-  int num_files = 0;
-  struct bitmap *used_sectors = bitmap_create(block_size(fs_device));
-  for (size_t i = 0; i < bitmap_size(used_sectors); i++)
+  int count = 0;
+  struct dir *dir = dir_open_root();
+  struct dir_entry e;
+
+  while (dir_readdir(dir, e.name))
   {
-    if (bitmap_test(used_sectors, i))
+    struct inode *inode = inode_open(e.inode_sector);
+    if (inode != NULL && !inode_is_directory(inode) && !inode_is_removed(inode))
     {
-      struct inode *inode = inode_open(i);
-      if (inode != NULL && !inode_is_directory(inode) && !inode_is_removed(inode))
+      off_t last_sector = -1;
+      bool fragmented = false;
+      off_t file_size = inode_length(inode);
+      for (off_t i = 0; i < file_size; i += BLOCK_SECTOR_SIZE)
       {
-        num_files++;
-        inode_close(inode);
+        off_t sector = bytes_to_sectors(i);
+        if (last_sector != -1 && sector - last_sector > 3)
+        {
+          fragmented = true;
+          break;
+        }
+        last_sector = sector;
       }
+      if (fragmented)
+      {
+        count++;
+      }
+      inode_close(inode);
     }
   }
-  bitmap_destroy(used_sectors);
-  return num_files;
+  dir_close(dir);
+  return count;
 }
 
-void fragmentation_degree()
+void fragmentation_degree(void)
 {
-  int free_sectors = num_free_sectors();
-  int total_sectors = block_size(fs_device);
-  int used_sectors = total_sectors - free_sectors;
-
   int num_fragmentable_files = count_fragmentable_files();
-  int num_fragmented_files = count_total_files();
+  int num_fragmented_files = count_fragmented_files();
 
-  float fragmentation_pct = 0.0;
-  if (used_sectors != 0)
+  float degree_of_fragmentation = 0.0;
+  if (num_fragmentable_files > 0)
   {
-    fragmentation_pct = (100 * free_sectors) / total_sectors;
+    degree_of_fragmentation = (float)num_fragmented_files / num_fragmentable_files;
   }
 
   printf("Num fragmentable files: %d\n", num_fragmentable_files);
   printf("Num fragmented files: %d\n", num_fragmented_files);
-  printf("Fragmentation pct: %.6f\n", fragmentation_pct);
+  printf("Fragmentation pct: %.6f\n", degree_of_fragmentation);
 }
 
 int defragment()
