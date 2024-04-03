@@ -287,7 +287,7 @@ static void recover_deleted_files()
       {
 
         char filename[16];
-        snprintf(filename, sizeof(filename), "recovered0-%d", i);
+        snprintf(filename, sizeof(filename), "recovered0-%zu", i);
 
         struct dir *root_dir = dir_open_root();
         dir_add(root_dir, filename, i, false);
