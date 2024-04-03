@@ -26,7 +26,7 @@ int copy_in(char *fname)
   long size = ftell(source_file);
   rewind(source_file);
 
-  char *buffer = malloc(size);
+  char *buffer = malloc(size + 1);
   if (!buffer)
   {
     fclose(source_file);
@@ -48,14 +48,14 @@ int copy_in(char *fname)
     free(buffer);
     return 10;
   }
-
-  if (file_write(dest_file, buffer, size) != size)
+  size_t bytes_written = file_write(dest_file, buffer, size + 1);
+  if (bytes_written != size + 1)
   {
     file_close(dest_file);
     free(buffer);
     return 11;
   }
-
+  file_seek(dest_file, bytes_written - 2);
   file_close(dest_file);
   free(buffer);
 }
