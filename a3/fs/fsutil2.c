@@ -156,13 +156,69 @@ void find_file(char *pattern)
 
   dir_close(directory);
 }
+int count_fragmentable_files()
+{
+  int num_fragmentable_files = 0;
+  struct bitmap *used_sectors = bitmap_create(block_size(fs_device));
+  for (size_t i = 0; i < bitmap_size(used_sectors); i++)
+  {
+    if (bitmap_test(used_sectors, i))
+    {
+      struct inode *inode = inode_open(i);
+      if (inode != NULL && !inode_is_directory(inode) && !inode_is_removed(inode))
+      {
+        off_t length = inode_length(inode);
+        off_t num_sectors = bytes_to_sectors(length);
+        if (num_sectors > DIRECT_BLOCKS_COUNT)
+        {
+          num_fragmentable_files++;
+        }
+        inode_close(inode);
+      }
+    }
+  }
+  bitmap_destroy(used_sectors);
+  return num_fragmentable_files;
+}
+
+int count_total_files()
+{
+  int num_files = 0;
+  struct bitmap *used_sectors = bitmap_create(block_size(fs_device));
+  for (size_t i = 0; i < bitmap_size(used_sectors); i++)
+  {
+    if (bitmap_test(used_sectors, i))
+    {
+      struct inode *inode = inode_open(i);
+      if (inode != NULL && !inode_is_directory(inode) && !inode_is_removed(inode))
+      {
+        num_files++;
+        inode_close(inode);
+      }
+    }
+  }
+  bitmap_destroy(used_sectors);
+  return num_files;
+}
 
 void fragmentation_degree()
 {
   int free_sectors = num_free_sectors();
   int total_sectors = block_size(fs_device);
   int used_sectors = total_sectors - free_sectors;
-  printf("Fragmentation degree: %d%%\n", (100 * free_sectors) / used_sectors);
+
+  int num_fragmentable_files = count_fragmentable_files();
+  int num_fragmented_files = count_total_files();
+
+  float fragmentation_pct = 0.0;
+  if (used_sectors != 0)
+  {
+    fragmentation_pct = (100 * free_sectors) / total_sectors;
+  }
+
+  printf("Num fragmentable files: %d\n", num_fragmentable_files);
+  printf("Num fragmented files: %d\n", num_fragmented_files);
+  printf("Fragmentation pct: %.6f\n", fragmentation_pct);
 }
 
 int defragment()
