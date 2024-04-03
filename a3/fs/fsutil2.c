@@ -103,14 +103,19 @@ int copy_out(char *fname)
     return 9;
   }
 
-  size_t bytes_written = fwrite(buffer, sizeof(char), size, dest_file);
+  int i;
+  for (i = 0; i < size; i++)
+  {
+    if (buffer[i] != '\0')
+    {
+      fputc(buffer[i], dest_file);
+    }
+  }
+
   fclose(dest_file);
   free(buffer);
 
-  if (bytes_written != size)
-  {
-    return 10;
-  }
+  return 0;
 }
 
 void find_file(char *pattern)
