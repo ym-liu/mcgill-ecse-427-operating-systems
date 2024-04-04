@@ -280,18 +280,25 @@ static void recover_deleted_files()
 
   struct dir *root_dir = dir_open_root();
 
-  for (size_t i = 0; i < bitmap_size(used_sectors); i++)
+  size_t total_sectors = bitmap_size(used_sectors);
+
+  for (size_t i = 0; i < total_sectors; i++)
   {
     if (bitmap_test(used_sectors, i))
     {
-      struct inode *inode = inode_open(i);
-      if (inode != NULL && inode_is_removed(inode))
+      // Check if the sector contains inode or data blocks
+      if ((i + 1) % (DIRECT_BLOCKS_COUNT + 2) != 0)
       {
-        char filename[16];
-        snprintf(filename, sizeof(filename), "recovered0-%zu", i);
-        dir_add(root_dir, filename, i, false);
-        inode->removed = false;
-        inode_close(inode);
+        // This is a data block, check if it belongs to an inode
+        size_t inode_index = (i / (DIRECT_BLOCKS_COUNT + 2)) * DIRECT_BLOCKS_COUNT;
+        struct inode *inode = inode_open(inode_index);
+        if (inode != NULL)
+        {
+          char filename[16];
+          snprintf(filename, sizeof(filename), "recovered0-%zu", inode_index);
+          dir_add(root_dir, filename, inode_index, false);
+          inode_close(inode);
+        }
       }
     }
   }
