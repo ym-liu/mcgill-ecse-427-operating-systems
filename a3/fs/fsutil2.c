@@ -336,6 +336,9 @@ static void recover_data_blocks()
     }
   }
 }
+
+#define MAX_FILENAME_LENGTH 50
+
 static void find_hidden_data_in_files()
 {
   struct dir *dir = dir_open_root();
@@ -349,23 +352,35 @@ static void find_hidden_data_in_files()
       continue;
     }
 
-    off_t length = inode_length(inode);
-    off_t last_block_bytes = length % BLOCK_SECTOR_SIZE;
-    if (last_block_bytes > 0 && last_block_bytes < BLOCK_SECTOR_SIZE)
+    off_t file_size = inode_length(inode);
+    off_t last_block_size = file_size % BLOCK_SECTOR_SIZE;
+    if (last_block_size > 0 && last_block_size < BLOCK_SECTOR_SIZE)
     {
+      char filename[MAX_FILENAME_LENGTH];
+      snprintf(filename, sizeof(filename), "recovered2-%s.txt", e.name);
+
       char buffer[BLOCK_SECTOR_SIZE];
-      block_sector_t last_block_sector = bytes_to_sectors(length - 1);
+      block_sector_t last_block_sector = bytes_to_sectors(file_size - 1);
       block_read(fs_device, last_block_sector, buffer);
 
-      // Create the output file
-      char filename[25];
-      snprintf(filename, sizeof(filename), "recovered2-%s.txt", e.name);
-      FILE *fp = fopen(filename, "w");
-      if (fp != NULL)
+      bool has_non_null = false;
+      for (int i = 0; i < last_block_size; ++i)
       {
-        // Write the entire block to the output file
-        fwrite(buffer, 1, BLOCK_SECTOR_SIZE, fp);
-        fclose(fp);
+        if (buffer[i] != '\0')
+        {
+          has_non_null = true;
+          break;
+        }
+      }
+
+      if (has_non_null)
+      {
+        FILE *fp = fopen(filename, "w");
+        if (fp != NULL)
+        {
+          fwrite(buffer, 1, last_block_size, fp);
+          fclose(fp);
+        }
       }
     }
     inode_close(inode);
