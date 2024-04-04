@@ -362,7 +362,7 @@ static void find_hidden_data_in_files()
       block_sector_t last_block_sector = bytes_to_sectors(file_size - 1);
       block_read(fs_device, last_block_sector, buffer);
 
-      FILE *fp = fopen(filename, "wb");
+      FILE *fp = fopen(filename, "w");
       if (fp != NULL)
       {
         for (int i = 0; i < last_block_size; ++i)
