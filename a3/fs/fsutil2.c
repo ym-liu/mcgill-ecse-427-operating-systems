@@ -196,14 +196,20 @@ int count_fragmented_files()
       block_sector_t previous_sector = (block_sector_t)-1;
       off_t file_length = inode_length(inode);
       off_t num_sectors = bytes_to_sectors(file_length);
+      printf(previous_sector);
+      printf(file_length);
+      printf(num_sectors);
 
       for (off_t i = 0; i < num_sectors; ++i)
       {
         block_sector_t current_sector = byte_to_sector(inode, i * BLOCK_SECTOR_SIZE);
         printf(current_sector);
+        printf(i * BLOCK_SECTOR_SIZE);
+
+        printf(inode);
+
         if (current_sector == (block_sector_t)-1)
         {
-
           is_fragmented = true;
           break;
         }
@@ -275,38 +281,7 @@ void recover(int flag)
 
 static void recover_deleted_files()
 {
-  struct bitmap *used_sectors = bitmap_create(block_size(fs_device));
-  free_map_open();
-
-  struct dir *root_dir = dir_open_root();
-
-  size_t total_sectors = bitmap_size(used_sectors);
-
-  for (size_t i = 0; i < total_sectors; i++)
-  {
-    if (bitmap_test(used_sectors, i))
-    {
-      // Check if the sector contains inode or data blocks
-      if ((i + 1) % (DIRECT_BLOCKS_COUNT + 2) != 0)
-      {
-        // This is a data block, check if it belongs to an inode
-        size_t inode_index = (i / (DIRECT_BLOCKS_COUNT + 2)) * DIRECT_BLOCKS_COUNT;
-        struct inode *inode = inode_open(inode_index);
-        if (inode != NULL)
-        {
-          char filename[16];
-          snprintf(filename, sizeof(filename), "recovered0-%zu", inode_index);
-          dir_add(root_dir, filename, inode_index, false);
-          inode_close(inode);
-        }
-      }
-    }
-  }
-
-  dir_close(root_dir);
-  bitmap_destroy(used_sectors);
 }
-
 static void recover_data_blocks()
 {
   block_sector_t total_sectors = block_size(fs_device);
