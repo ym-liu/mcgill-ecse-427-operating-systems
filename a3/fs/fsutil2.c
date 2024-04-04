@@ -358,32 +358,24 @@ static void find_hidden_data_in_files()
     {
       char filename[MAX_FILENAME_LENGTH];
       snprintf(filename, sizeof(filename), "recovered2-%s.txt", e.name);
-      printf("recovered2-%s.txt", e.name);
       char buffer[BLOCK_SECTOR_SIZE];
       block_sector_t last_block_sector = bytes_to_sectors(file_size - 1);
       block_read(fs_device, last_block_sector, buffer);
 
-      bool has_non_null = false;
       for (int i = 0; i < last_block_size; ++i)
       {
         if (buffer[i] != '\0')
         {
-          has_non_null = true;
-          break;
+          FILE *fp = fopen(filename, "w");
+          if (fp != NULL)
+          {
+            fwrite(buffer, 1, last_block_size, fp);
+            fclose(fp);
+          }
         }
       }
-
-      if (has_non_null)
-      {
-        FILE *fp = fopen(filename, "w");
-        if (fp != NULL)
-        {
-          fwrite(buffer, 1, last_block_size, fp);
-          fclose(fp);
-        }
-      }
+      inode_close(inode);
     }
-    inode_close(inode);
+    dir_close(dir);
   }
-  dir_close(dir);
 }
