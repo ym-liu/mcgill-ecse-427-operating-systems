@@ -358,7 +358,7 @@ static void find_hidden_data_in_files()
     {
       char filename[MAX_FILENAME_LENGTH];
       snprintf(filename, sizeof(filename), "recovered2-%s.txt", e.name);
-
+      printf("recovered2-%s.txt", e.name);
       char buffer[BLOCK_SECTOR_SIZE];
       block_sector_t last_block_sector = bytes_to_sectors(file_size - 1);
       block_read(fs_device, last_block_sector, buffer);
