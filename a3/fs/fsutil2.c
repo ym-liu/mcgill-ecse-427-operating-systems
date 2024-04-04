@@ -362,20 +362,27 @@ static void find_hidden_data_in_files()
       block_sector_t last_block_sector = bytes_to_sectors(file_size - 1);
       block_read(fs_device, last_block_sector, buffer);
 
+      bool has_non_null = false;
       for (int i = 0; i < last_block_size; ++i)
       {
         if (buffer[i] != '\0')
         {
-          FILE *fp = fopen(filename, "w");
-          if (fp != NULL)
-          {
-            fwrite(buffer, 1, last_block_size, fp);
-            fclose(fp);
-          }
+          has_non_null = true;
+          break;
         }
       }
-      inode_close(inode);
+
+      if (has_non_null)
+      {
+        FILE *fp = fopen(filename, "wb");
+        if (fp != NULL)
+        {
+          fwrite(buffer, 1, last_block_size, fp);
+          fclose(fp);
+        }
+      }
     }
-    dir_close(dir);
+    inode_close(inode);
   }
+  dir_close(dir);
 }
