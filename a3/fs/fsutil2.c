@@ -203,10 +203,6 @@ int count_fragmented_files()
       for (off_t i = 0; i < num_sectors; ++i)
       {
         block_sector_t current_sector = byte_to_sector(inode, i * BLOCK_SECTOR_SIZE);
-        printf(current_sector);
-        printf(i * BLOCK_SECTOR_SIZE);
-
-        printf(inode);
 
         if (current_sector == (block_sector_t)-1)
         {
