@@ -278,27 +278,25 @@ static void recover_deleted_files()
   struct bitmap *used_sectors = bitmap_create(block_size(fs_device));
   free_map_open();
 
+  struct dir *root_dir = dir_open_root();
+
   for (size_t i = 0; i < bitmap_size(used_sectors); i++)
   {
-    if (!bitmap_test(used_sectors, i))
+    if (bitmap_test(used_sectors, i))
     {
       struct inode *inode = inode_open(i);
       if (inode != NULL && inode_is_removed(inode))
       {
-
         char filename[16];
         snprintf(filename, sizeof(filename), "recovered0-%zu", i);
-
-        struct dir *root_dir = dir_open_root();
         dir_add(root_dir, filename, i, false);
-        dir_close(root_dir);
-
         inode->removed = false;
         inode_close(inode);
       }
     }
   }
 
+  dir_close(root_dir);
   bitmap_destroy(used_sectors);
 }
 
