@@ -339,7 +339,9 @@ static void find_hidden_data_in_files()
 
   while (dir_readdir(dir, e.name))
   {
-    struct inode *inode = inode_open(e.inode_sector);
+    block_sector_t inode_file = dir_readdir_inode(dir, e.name);
+    struct inode *inode = inode_open(inode_file);
+
     if (inode == NULL || inode_is_directory(inode) || inode_is_removed(inode))
     {
       continue;
@@ -350,6 +352,7 @@ static void find_hidden_data_in_files()
 
     if ((buffer->magic == INODE_MAGIC) && (buffer->length % 512 != 0))
     {
+
       block_sector_t last_block = *get_inode_data_sectors(inode);
       int modulo = buffer->length % 512;
       int beginning = BLOCK_SECTOR_SIZE - modulo - 1;
@@ -357,7 +360,7 @@ static void find_hidden_data_in_files()
       char *recovered = malloc(sizeof(char) * BLOCK_SECTOR_SIZE);
       buffer_cache_read(last_block, block);
       strncpy(recovered, block + beginning, modulo);
-
+      printf("%s\n", recovered);
       char filename[100];
       snprintf(filename, sizeof(filename), "recovered2-%s.txt", e.name);
 
