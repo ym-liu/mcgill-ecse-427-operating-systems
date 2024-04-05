@@ -189,7 +189,7 @@ int count_fragmented_files()
 
   while (dir_readdir(dir, e.name))
   {
-    struct inode *inode = inode_open(e.inode_sector);
+    struct inode *inode = inode_open(dir_readdir(dir, e.name));
     if (inode != NULL && !inode_is_directory(inode) && !inode_is_removed(inode))
     {
       bool is_fragmented = false;
