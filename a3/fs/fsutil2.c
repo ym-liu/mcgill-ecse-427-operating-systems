@@ -332,8 +332,6 @@ static void recover_data_blocks()
   }
 }
 
-#define MAX_FILENAME_LENGTH 50
-
 static void find_hidden_data_in_files()
 {
   struct dir *dir = dir_open_root();
@@ -346,31 +344,30 @@ static void find_hidden_data_in_files()
     {
       continue;
     }
+    block_sector_t sector = inode->sector;
+    struct inode_disk *buffer = malloc(BLOCK_SECTOR_SIZE);
+    buffer_cache_read(sector, buffer);
 
-    off_t file_size = inode_length(inode);
-    off_t last_block_size = file_size % BLOCK_SECTOR_SIZE;
-    if (last_block_size > 0 && last_block_size < BLOCK_SECTOR_SIZE)
+    if ((buffer->magic == INODE_MAGIC) && (buffer->length % 512 != 0))
     {
-      char filename[MAX_FILENAME_LENGTH];
+      block_sector_t last_block = *get_inode_data_sectors(inode);
+      int modulo = buffer->length % 512;
+      int beginning = BLOCK_SECTOR_SIZE - modulo - 1;
+      char *block = malloc(sizeof(char) * BLOCK_SECTOR_SIZE);
+      char *recovered = malloc(sizeof(char) * BLOCK_SECTOR_SIZE);
+      buffer_cache_read(last_block, block);
+      strncpy(recovered, block + beginning, modulo);
+
+      char filename[100];
       snprintf(filename, sizeof(filename), "recovered2-%s.txt", e.name);
-      char buffer[BLOCK_SECTOR_SIZE];
-      block_sector_t last_block_sector = bytes_to_sectors(file_size - 1);
-      block_read(fs_device, last_block_sector, buffer);
 
       FILE *fp = fopen(filename, "w");
       if (fp != NULL)
       {
-        for (int i = 0; i < last_block_size; ++i)
-        {
-          if (buffer[i] != '\0')
-          {
-            fputc(buffer[i], fp);
-          }
-        }
+        fputs(recovered, fp);
       }
       fclose(fp);
     }
-    inode_close(inode);
   }
   dir_close(dir);
 }
