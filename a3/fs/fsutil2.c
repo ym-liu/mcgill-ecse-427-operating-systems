@@ -354,12 +354,24 @@ static void find_hidden_data_in_files()
     struct inode_disk *buffer = malloc(BLOCK_SECTOR_SIZE);
     buffer_cache_read(sector, buffer);
 
-    if ((buffer->magic == INODE_MAGIC) && (buffer->length % 512 != 0))
+    if ((buffer->magic == INODE_MAGIC) && (buffer->length % BLOCK_SECTOR_SIZE != 0))
     {
 
-      block_sector_t last_block = *get_inode_data_sectors(inode);
+      block_sector_t *data_sectors = get_inode_data_sectors(inode);
+      block_sector_t last_block = 0;
 
-      int modulo = buffer->length % 512;
+      if (data_sectors != NULL)
+      {
+        size_t i = 0;
+        while (data_sectors[i] != 0)
+        {
+          last_block = data_sectors[i];
+          ++i;
+        }
+        free(data_sectors);
+      }
+
+      int modulo = buffer->length % BLOCK_SECTOR_SIZE;
       int beginning = BLOCK_SECTOR_SIZE - modulo - 1;
       char *block = malloc(sizeof(char) * BLOCK_SECTOR_SIZE);
       char *recovered = malloc(sizeof(char) * BLOCK_SECTOR_SIZE);
