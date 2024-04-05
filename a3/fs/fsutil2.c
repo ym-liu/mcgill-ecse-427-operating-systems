@@ -293,18 +293,13 @@ static void recover_deleted_files()
         char filename[100];
         snprintf(filename, sizeof(filename), "recovered0-%d", sector);
 
-        size_t data_sectors = bytes_to_sectors(recovered_inode->data.length);
-
-        for (size_t i = 0; i < data_sectors; i++)
-        {
-          free_map_release(recovered_inode->data.direct_blocks[i], 1);
-        }
-
         if (filesys_open(filename) == NULL)
         {
-          if (!filesys_create(filename, recovered_inode->data.length, false))
+          struct dir *dir = dir_open_root();
+          if (dir != NULL)
           {
-            continue;
+            dir_add(dir, filename, sector, false);
+            dir_close(dir);
           }
         }
         struct file *recovered_file = filesys_open(filename);
