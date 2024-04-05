@@ -337,9 +337,13 @@ static void find_hidden_data_in_files()
   struct dir *dir = dir_open_root();
   struct dir_entry e;
 
-  while (dir_readdir(dir, e.name))
+  while (true)
   {
     block_sector_t inode_file = dir_readdir_inode(dir, e.name);
+    if (inode_file == -1)
+    {
+      break;
+    }
     struct inode *inode = inode_open(inode_file);
 
     if (inode == NULL || inode_is_directory(inode) || inode_is_removed(inode))
@@ -370,6 +374,7 @@ static void find_hidden_data_in_files()
         fputs(recovered, fp);
       }
       fclose(fp);
+      printf("%s\n", filename);
     }
   }
   dir_close(dir);
