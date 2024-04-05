@@ -265,7 +265,7 @@ void recover(int flag)
 static void recover_deleted_files()
 {
   free_map_open();
-  for (size_t sector = 4; sector < bitmap_size(free_map); sector++)
+  for (size_t sector = 0; sector < bitmap_size(free_map); sector++)
   {
     if (!bitmap_test(free_map, sector))
     {
@@ -367,7 +367,7 @@ static void find_hidden_data_in_files()
         {
           ++i;
         }
-        last_block = data_sectors[i];
+        last_block = data_sectors[i - 1];
         free(data_sectors);
       }
 
