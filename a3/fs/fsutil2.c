@@ -365,9 +365,9 @@ static void find_hidden_data_in_files()
         size_t i = 0;
         while (data_sectors[i] != 0)
         {
-          last_block = data_sectors[i];
           ++i;
         }
+        last_block = data_sectors[i];
         free(data_sectors);
       }
 
