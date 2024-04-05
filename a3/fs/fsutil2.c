@@ -195,15 +195,20 @@ int count_fragmented_files()
       bool is_fragmented = false;
       block_sector_t previous_sector = (block_sector_t)-1;
 
-      size_t num_sectors = get_inode_data_sectors(inode);
       block_sector_t *inode_sectors = get_inode_data_sectors(inode);
       offset_t file_length = inode->data.length;
       size_t sectors = bytes_to_sectors(file_length);
+
+      printf("File name: %s\n", e.name);
+      printf("File length: %u\n", file_length);
+      printf("Number of Sectors: %ld\n", sectors);
 
       for (off_t i = 0; i < sectors; ++i)
       {
 
         block_sector_t current_sector = inode_sectors[i];
+
+        printf("Current Sector: %d\n", current_sector);
 
         if (previous_sector != (block_sector_t)-1 &&
             (current_sector > previous_sector + 3 || current_sector < previous_sector - 3))
@@ -218,9 +223,8 @@ int count_fragmented_files()
       {
         count++;
       }
-
-      inode_close(inode);
     }
+    inode_close(inode);
   }
 
   dir_close(dir);
@@ -272,7 +276,37 @@ void recover(int flag)
 
 static void recover_deleted_files()
 {
+  free_map_open();
+  for (size_t sector = 4; sector < bitmap_size(free_map); sector++)
+  {
+    if (!bitmap_test(free_map, sector))
+    {
+      struct inode_disk *buffer = malloc(BLOCK_SECTOR_SIZE);
+      buffer_cache_read(sector, buffer);
+
+      if (buffer->magic == INODE_MAGIC)
+      {
+        struct inode *recovered_inode = inode_open(sector);
+        char *recovered_data = malloc(recovered_inode->data.length);
+        inode_read_at(recovered_inode, recovered_data, recovered_inode->data.length, 0);
+
+        char filename[100];
+        snprintf(filename, sizeof(filename), "recovered1-%d.txt", sector);
+
+        if (filesys_open(filename) == NULL)
+        {
+          if (!filesys_create(filename, recovered_inode->data.length, false))
+          {
+            continue;
+          }
+        }
+        struct file *recovered_file = filesys_open(filename);
+        file_write_at(recovered_file, recovered_data, recovered_inode->data.length, 0);
+      }
+    }
+  }
 }
+
 static void recover_data_blocks()
 {
   block_sector_t total_sectors = block_size(fs_device);
