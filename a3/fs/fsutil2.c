@@ -194,9 +194,10 @@ int count_fragmented_files()
     {
       bool is_fragmented = false;
       block_sector_t previous_sector = (block_sector_t)-1;
-      off_t file_length = inode_length(inode);
-      off_t num_sectors = bytes_to_sectors(file_length);
-      printf("File Length: %ld\n", file_length);
+
+      size_t num_sectors = get_inode_data_sectors(inode);
+      printf("File name: %s\n", e.name);
+      printf("inode Sector: %u\n", e.inode_sector);
       printf("Number of Sectors: %ld\n", num_sectors);
       printf("Previous Sector: %d\n", previous_sector);
       for (off_t i = 0; i < num_sectors; ++i)
@@ -204,8 +205,6 @@ int count_fragmented_files()
         block_sector_t current_sector = byte_to_sector(inode, i * BLOCK_SECTOR_SIZE);
         printf("Current Sector: %d\n", current_sector);
         printf("Offset: %ld\n", i * BLOCK_SECTOR_SIZE);
-
-        printf(inode);
 
         if (current_sector == (block_sector_t)-1)
         {
