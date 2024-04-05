@@ -376,7 +376,7 @@ static void find_hidden_data_in_files()
       char *block = malloc(sizeof(char) * BLOCK_SECTOR_SIZE);
       char *recovered = malloc(sizeof(char) * BLOCK_SECTOR_SIZE);
       buffer_cache_read(last_block, block);
-      strncpy(recovered, block, modulo);
+      strncpy(recovered, block + beginning, modulo);
       printf("%s\n", recovered);
 
       char filename[100];
