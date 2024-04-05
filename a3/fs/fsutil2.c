@@ -291,7 +291,7 @@ static void recover_deleted_files()
         inode_read_at(recovered_inode, recovered_data, recovered_inode->data.length, 0);
 
         char filename[100];
-        snprintf(filename, sizeof(filename), "recovered1-%d", sector);
+        snprintf(filename, sizeof(filename), "recovered0-%d", sector);
 
         if (filesys_open(filename) == NULL)
         {
