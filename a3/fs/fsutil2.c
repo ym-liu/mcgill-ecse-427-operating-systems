@@ -193,38 +193,23 @@ int count_fragmented_files()
     if (inode != NULL && !inode_is_directory(inode) && !inode_is_removed(inode))
     {
       bool is_fragmented = false;
-      block_sector_t previous_sector = (block_sector_t)-1;
-
       block_sector_t *inode_sectors = get_inode_data_sectors(inode);
-      offset_t file_length = inode->data.length;
-      size_t sectors = bytes_to_sectors(file_length);
 
-      printf("File name: %s\n", e.name);
-      printf("File length: %u\n", file_length);
-      printf("Number of Sectors: %ld\n", sectors);
-
-      for (off_t i = 0; i < sectors; ++i)
+      for (size_t i = 1; i < inode_length(inode) / BLOCK_SECTOR_SIZE; i++)
       {
-
-        block_sector_t current_sector = inode_sectors[i];
-
-        printf("Current Sector: %d\n", current_sector);
-
-        if (previous_sector != (block_sector_t)-1 &&
-            (current_sector > previous_sector + 3 || current_sector < previous_sector - 3))
+        if (inode_sectors[i] - inode_sectors[i - 1] > 3)
         {
           is_fragmented = true;
           break;
         }
-        previous_sector = current_sector;
       }
 
       if (is_fragmented)
       {
         count++;
       }
+      inode_close(inode);
     }
-    inode_close(inode);
   }
 
   dir_close(dir);
