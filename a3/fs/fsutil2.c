@@ -357,7 +357,8 @@ static void find_hidden_data_in_files()
     if ((buffer->magic == INODE_MAGIC) && (buffer->length % 512 != 0))
     {
 
-      block_sector_t last_block = bytes_to_sectors(inode_length(inode));
+      block_sector_t last_block = *get_inode_data_sectors(inode);
+
       int modulo = buffer->length % 512;
       int beginning = BLOCK_SECTOR_SIZE - modulo - 1;
       char *block = malloc(sizeof(char) * BLOCK_SECTOR_SIZE);
@@ -372,8 +373,11 @@ static void find_hidden_data_in_files()
       if (fp != NULL)
       {
         fputs(recovered, fp);
+        fclose(fp);
       }
-      fclose(fp);
+      free(buffer);
+      free(block);
+      free(recovered);
     }
   }
   dir_close(dir);
