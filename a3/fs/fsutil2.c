@@ -234,8 +234,83 @@ void fragmentation_degree(void)
   printf("Fragmentation pct: %.6f\n", degree_of_fragmentation);
 }
 
+char *read_file_into_memory(const char *filename)
+{
+  FILE *file = fopen(filename, "r");
+  if (file == NULL)
+  {
+    fprintf(stderr, "Error: Cannot open file %s\n", filename);
+    return NULL;
+  }
+
+  fseek(file, 0, SEEK_END);
+  long file_size = ftell(file);
+  fseek(file, 0, SEEK_SET);
+
+  char *buffer = (char *)malloc(file_size + 1);
+  if (buffer == NULL)
+  {
+    fprintf(stderr, "Error: Memory allocation failed\n");
+    fclose(file);
+    return NULL;
+  }
+
+  fread(buffer, 1, file_size, file);
+  buffer[file_size] = '\0';
+  fclose(file);
+  return buffer;
+}
+
 int defragment()
 {
+  int num_files = fsutil_ls(NULL);
+  if (num_files == -1)
+  {
+    fprintf(stderr, "Error: Unable to list files\n");
+    return -1;
+  }
+
+  char **file_contents = (char **)malloc(num_files * sizeof(char *));
+  if (file_contents == NULL)
+  {
+    fprintf(stderr, "Error: Memory allocation failed\n");
+    return -1;
+  }
+
+  for (int i = 0; i < num_files; i++)
+  {
+    char filename[256];
+    fsutil_ls(filename);
+    file_contents[i] = read_file_into_memory(filename);
+    if (file_contents[i] == NULL)
+    {
+      for (int j = 0; j < i; j++)
+      {
+        free(file_contents[j]);
+      }
+      free(file_contents);
+      return -1;
+    }
+  }
+
+  for (int i = 0; i < num_files; i++)
+  {
+    char filename[256];
+    fsutil_ls(filename);
+    fsutil_rm(filename);
+  }
+
+  for (int i = 0; i < num_files; i++)
+  {
+    char filename[256];
+    fsutil_ls(filename);
+    fsutil_create(filename, strlen(file_contents[i]));
+    fsutil_write(filename, file_contents[i], strlen(file_contents[i]));
+    free(file_contents[i]);
+  }
+
+  free(file_contents);
+  return 0;
 }
 
 static void recover_deleted_files();
