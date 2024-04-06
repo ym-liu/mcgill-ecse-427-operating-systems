@@ -263,54 +263,6 @@ char *read_file_into_memory(const char *filename)
 
 int defragment()
 {
-  int num_files = fsutil_ls(NULL);
-  if (num_files == -1)
-  {
-    fprintf(stderr, "Error: Unable to list files\n");
-    return -1;
-  }
-
-  char **file_contents = (char **)malloc(num_files * sizeof(char *));
-  if (file_contents == NULL)
-  {
-    fprintf(stderr, "Error: Memory allocation failed\n");
-    return -1;
-  }
-
-  for (int i = 0; i < num_files; i++)
-  {
-    char filename[256];
-    fsutil_ls(filename);
-    file_contents[i] = read_file_into_memory(filename);
-    if (file_contents[i] == NULL)
-    {
-      for (int j = 0; j < i; j++)
-      {
-        free(file_contents[j]);
-      }
-      free(file_contents);
-      return -1;
-    }
-  }
-
-  for (int i = 0; i < num_files; i++)
-  {
-    char filename[256];
-    fsutil_ls(filename);
-    fsutil_rm(filename);
-  }
-
-  for (int i = 0; i < num_files; i++)
-  {
-    char filename[256];
-    fsutil_ls(filename);
-    fsutil_create(filename, strlen(file_contents[i]));
-    fsutil_write(filename, file_contents[i], strlen(file_contents[i]));
-    free(file_contents[i]);
-  }
-
-  free(file_contents);
-  return 0;
 }
 
 static void recover_deleted_files();
@@ -374,12 +326,12 @@ static void recover_deleted_files()
 static void recover_data_blocks()
 {
   block_sector_t total_sectors = block_size(fs_device);
-  for (block_sector_t i = 4; i < total_sectors; i++)
+  for (block_sector_t i = 4; i < total_sectors - 1; i++)
   {
     char buffer[BLOCK_SECTOR_SIZE] = {0};
     block_read(fs_device, i, buffer);
     bool is_non_zero = false;
-    for (unsigned j = 0; j < BLOCK_SECTOR_SIZE; j++)
+    for (int j = 0; j < BLOCK_SECTOR_SIZE; j++)
     {
       if (buffer[j] != 0)
       {
@@ -387,6 +339,7 @@ static void recover_data_blocks()
         break;
       }
     }
+
     if (is_non_zero)
     {
       char filename[NAME_MAX];
@@ -399,6 +352,7 @@ static void recover_data_blocks()
         {
           data_size++;
         }
+
         fwrite(buffer, 1, data_size, fp);
         fclose(fp);
       }
