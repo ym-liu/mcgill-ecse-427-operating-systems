@@ -361,7 +361,7 @@ static void find_hidden_data_in_files()
       block_sector_t last_block = 0;
 
       size_t sectors = bytes_to_sectors(inode_length(inode));
-      last_block = data_sectors[sectors - 1];
+      last_block = data_sectors[sectors];
 
       int modulo = fsutil_size(e.name) % BLOCK_SECTOR_SIZE;
       int beginning = BLOCK_SECTOR_SIZE - modulo;
