@@ -359,16 +359,15 @@ static void find_hidden_data_in_files()
 
       block_sector_t *data_sectors = get_inode_data_sectors(inode);
       block_sector_t last_block = 0;
-
       size_t sectors = bytes_to_sectors(inode_length(inode));
-      last_block = data_sectors[sectors];
+      last_block = data_sectors[sectors - 1];
 
       int modulo = fsutil_size(e.name) % BLOCK_SECTOR_SIZE;
-      int beginning = BLOCK_SECTOR_SIZE - modulo;
+      int beginning = BLOCK_SECTOR_SIZE - modulo - 1;
       char *block = malloc(sizeof(char) * BLOCK_SECTOR_SIZE);
       char *recovered = malloc(sizeof(char) * BLOCK_SECTOR_SIZE);
       buffer_cache_read(last_block, block);
-      strncpy(recovered, block + beginning, modulo);
+      strncpy(recovered, block + modulo, beginning);
       printf("%s\n", recovered);
 
       char filename[100];
