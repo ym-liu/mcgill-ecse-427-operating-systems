@@ -134,16 +134,15 @@ void find_file(char *pattern)
     }
 
     int file_size = file_length(file);
-    char *buffer = (char *)malloc((file_size + 1) * sizeof(char)); // Add 1 for null terminator
+    char *buffer = (char *)malloc((file_size + 1) * sizeof(char));
     if (!buffer)
     {
-      printf("Error: Memory allocation failed.\n");
       file_close(file);
       continue;
     }
 
     int bytes_read = file_read(file, buffer, file_size);
-    buffer[bytes_read] = '\0'; // Null-terminate the buffer
+    buffer[bytes_read] = '\0';
     file_close(file);
 
     if (strstr(buffer, pattern))
@@ -278,7 +277,7 @@ static void recover_deleted_files()
         char *recovered_data = malloc(recovered_inode->data.length);
         inode_read_at(recovered_inode, recovered_data, recovered_inode->data.length, 0);
 
-        char filename[100];
+        char filename[NAME_MAX];
         snprintf(filename, sizeof(filename), "recovered0-%d", sector);
 
         if (filesys_open(filename) == NULL)
@@ -315,7 +314,7 @@ static void recover_data_blocks()
     }
     if (is_non_zero)
     {
-      char filename[25];
+      char filename[NAME_MAX];
       snprintf(filename, sizeof(filename), "recovered1-%d.txt", i);
       FILE *fp = fopen(filename, "w");
       if (fp != NULL)
@@ -369,7 +368,7 @@ static void find_hidden_data_in_files()
       buffer_cache_read(last_block, block);
       memcpy(recovered, block + modulo, left);
 
-      char filename[100];
+      char filename[NAME_MAX];
       snprintf(filename, sizeof(filename), "recovered2-%s.txt", e.name);
       FILE *fp = fopen(filename, "w");
       if (fp != NULL)
@@ -383,9 +382,6 @@ static void find_hidden_data_in_files()
         }
         fclose(fp);
       }
-      free(buffer);
-      free(block);
-      free(recovered);
     }
   }
   dir_close(dir);
