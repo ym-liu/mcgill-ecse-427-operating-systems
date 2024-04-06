@@ -371,7 +371,7 @@ static void find_hidden_data_in_files()
         free(data_sectors);
       }
 
-      int modulo = fsutil_size(e.name) % BLOCK_SECTOR_SIZE - 1;
+      int modulo = fsutil_size(e.name) % BLOCK_SECTOR_SIZE;
       int beginning = BLOCK_SECTOR_SIZE - modulo;
       char *block = malloc(sizeof(char) * BLOCK_SECTOR_SIZE);
       char *recovered = malloc(sizeof(char) * BLOCK_SECTOR_SIZE);
