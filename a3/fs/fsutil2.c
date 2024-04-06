@@ -384,7 +384,13 @@ static void find_hidden_data_in_files()
       FILE *fp = fopen(filename, "w");
       if (fp != NULL)
       {
-        fputs(recovered, fp);
+        for (int i = 0; i < BLOCK_SECTOR_SIZE; i++)
+        {
+          if (recovered[i] != '\0')
+          {
+            fputc(recovered[i], fp);
+          }
+        }
         fclose(fp);
       }
       free(buffer);
