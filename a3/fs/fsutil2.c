@@ -8,6 +8,7 @@
 #include "free-map.h"
 #include "fsutil.h"
 #include "inode.h"
+#include "../interpreter.h"
 #include "off_t.h"
 #include "partition.h"
 #include <stdio.h>
@@ -237,6 +238,144 @@ void fragmentation_degree(void)
 
 int defragment()
 {
+  // printf("\ncreate buffers...\n");
+  // create buffer name_buffer for names
+  char *name_buffer = (char *)malloc((NAME_MAX + 1) * MAX_FILES_IN_DIRECTORY + 1);
+  if (!name_buffer)
+  {
+    return handle_error(NO_MEM_SPACE);
+  }
+  // create buffer size_buffer for sizes
+  offset_t *size_buffer = (offset_t *)malloc(sizeof(offset_t) * MAX_FILES_IN_DIRECTORY + 1);
+  if (!size_buffer)
+  {
+    free(name_buffer);
+    return handle_error(NO_MEM_SPACE);
+  }
+  // create buffer data_buffer for files' data
+  char *data_buffer = (char *)malloc(1024 * 1024 * 8); // blank.dsk has size 1MB
+  if (!data_buffer)
+  {
+    free(name_buffer);
+    free(size_buffer);
+    return handle_error(NO_MEM_SPACE);
+  }
+  int data_buffer_cur_offset = 0;
+
+  // read files into buffers
+  // printf("\nread files into buffers...\n");
+  int buffer_index = 0;
+  struct dir *dir = dir_open_root();
+  struct dir_entry e;
+  while (dir_readdir(dir, e.name))
+  {
+    // open inode of directory entry
+    struct inode *inode = inode_open(e.inode_sector);
+
+    // if valid inode,
+    if (inode != NULL && !inode_is_directory(inode) && !inode_is_removed(inode))
+    {
+      // read name into name_buffer
+      for (int i = buffer_index * (NAME_MAX + 1); i < (buffer_index + 1) * (NAME_MAX + 1); i++)
+      {
+        if (e.name[i % (NAME_MAX + 1)] == '\0') // if reached null terminator
+        {
+          name_buffer[i] = '\0';
+          break;
+        }
+        name_buffer[i] = e.name[i % (NAME_MAX + 1)]; // read name char by char
+      }
+
+      // get file size with inode_length(inode)
+      off_t file_size = fsutil_size(e.name);
+      // read size into size_buffer
+      // printf("read size into size_buffer...\n");
+      // printf("    file_size=%i\n", file_size);
+      size_buffer[buffer_index] = file_size;
+
+      // read data into data_buffer
+      // printf("read data into data_buffer...\n");
+      // printf("    open file...\n");
+      FILE *fd = filesys_open(e.name);
+
+      // printf("    read into buffer...\n");
+      char *file_content = (char *)malloc(1024 * 1024);
+      int bytes_read = file_read(fd, file_content, file_size);
+      strcat(data_buffer, file_content);
+      if (bytes_read != file_size)
+      {
+        free(name_buffer);
+        free(size_buffer);
+        free(data_buffer);
+        free(file_content);
+        file_close(e.name);
+        inode_close(inode);
+        return handle_error(FILE_READ_ERROR);
+      }
+
+      // printf("    close file...\n");
+      file_close(fd);
+      free(file_content);
+
+      // close inode of directory entry
+      // printf("close inode...\n");
+      inode_close(inode);
+
+      // increment buffer index
+      buffer_index++;
+    }
+  }
+  dir_close(dir);
+
+  // printf("\nNAME BUFFER: \n");
+  /*for (int i = 0; i < buffer_index; i++)
+  {
+    printf("%s\n", name_buffer + i * (NAME_MAX + 1));
+  }*/
+
+  // remove files from disk
+  // printf("remove files from disk...\n");
+  struct dir *dir2 = dir_open_root();
+  struct dir_entry e2;
+  while (dir_readdir(dir, e2.name))
+  {
+    // remove inode with inode_remove
+    struct inode *inode = inode_open(e2.inode_sector);
+    inode_remove(inode);
+    inode_close(inode);
+    dir_remove(dir2, e2.name);
+    fsutil_rm(e2.name);
+  }
+  dir_close(dir2);
+
+  // copy files contiguously into disk
+  // printf("copy files contiguously into disk...\n");
+  for (int i = 0; i < buffer_index; i++)
+  {
+    char *name = (char *)malloc(sizeof(char) * (NAME_MAX + 1));
+    char *data = (char *)malloc(1024 * 1024);
+    int data_i = 0;
+    strcpy(name, name_buffer + i * (NAME_MAX + 1));
+
+    int j = data_buffer_cur_offset;
+    int file_size = ceil(fsutil_size(name_buffer + i * (NAME_MAX + 1)) / 512) * 512;
+    for (j; j < data_buffer_cur_offset + file_size; j++)
+    {
+      data[data_i] = data_buffer[j];
+      data_i++;
+    }
+    data_buffer_cur_offset = data_buffer_cur_offset + file_size;
+    filesys_create(name, size_buffer[sizeof(offset_t) * i], data);
+    free(name);
+    free(data);
+  }
+
+  // free mallocs and return error code
+  // printf("free mallocs and return error code...\n");
+  free(name_buffer);
+  free(size_buffer);
+  free(data_buffer);
+  return 0;
 }
 
 static void recover_deleted_files();

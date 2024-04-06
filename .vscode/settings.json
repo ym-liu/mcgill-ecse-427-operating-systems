@@ -7,6 +7,20 @@
     "shellmemory.h": "c",
     "pcb.h": "c",
     "stdint.h": "c",
-    "kernel.h": "c"
+    "kernel.h": "c",
+    "filesys.h": "c",
+    "free-map.h": "c",
+    "off_t.h": "c",
+    "array": "c",
+    "*.tcc": "c",
+    "memory": "c",
+    "functional": "c",
+    "istream": "c",
+    "tuple": "c",
+    "utility": "c",
+    "algorithm": "c",
+    "initializer_list": "c",
+    "typeinfo": "c",
+    "inode.h": "c"
   }
 }
