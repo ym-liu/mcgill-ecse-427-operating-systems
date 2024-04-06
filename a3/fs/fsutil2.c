@@ -135,16 +135,15 @@ void find_file(char *pattern)
     }
 
     int file_size = file_length(file);
-    char *buffer = (char *)malloc((file_size + 1) * sizeof(char)); // Add 1 for null terminator
+    char *buffer = (char *)malloc((file_size + 1) * sizeof(char));
     if (!buffer)
     {
-      printf("Error: Memory allocation failed.\n");
       file_close(file);
       continue;
     }
 
     int bytes_read = file_read(file, buffer, file_size);
-    buffer[bytes_read] = '\0'; // Null-terminate the buffer
+    buffer[bytes_read] = '\0';
     file_close(file);
 
     if (strstr(buffer, pattern))
@@ -234,6 +233,33 @@ void fragmentation_degree(void)
   printf("Num fragmentable files: %d\n", num_fragmentable_files);
   printf("Num fragmented files: %d\n", num_fragmented_files);
   printf("Fragmentation pct: %.6f\n", degree_of_fragmentation);
+}
+
+char *read_file_into_memory(const char *filename)
+{
+  FILE *file = fopen(filename, "r");
+  if (file == NULL)
+  {
+    fprintf(stderr, "Error: Cannot open file %s\n", filename);
+    return NULL;
+  }
+
+  fseek(file, 0, SEEK_END);
+  long file_size = ftell(file);
+  fseek(file, 0, SEEK_SET);
+
+  char *buffer = (char *)malloc(file_size + 1);
+  if (buffer == NULL)
+  {
+    fprintf(stderr, "Error: Memory allocation failed\n");
+    fclose(file);
+    return NULL;
+  }
+
+  fread(buffer, 1, file_size, file);
+  buffer[file_size] = '\0';
+  fclose(file);
+  return buffer;
 }
 
 int defragment()
@@ -404,7 +430,7 @@ void recover(int flag)
 static void recover_deleted_files()
 {
   free_map_open();
-  for (size_t sector = 4; sector < bitmap_size(free_map); sector++)
+  for (size_t sector = 0; sector < bitmap_size(free_map); sector++)
   {
     if (!bitmap_test(free_map, sector))
     {
@@ -417,7 +443,7 @@ static void recover_deleted_files()
         char *recovered_data = malloc(recovered_inode->data.length);
         inode_read_at(recovered_inode, recovered_data, recovered_inode->data.length, 0);
 
-        char filename[100];
+        char filename[NAME_MAX];
         snprintf(filename, sizeof(filename), "recovered0-%d", sector);
 
         if (filesys_open(filename) == NULL)
@@ -439,12 +465,12 @@ static void recover_deleted_files()
 static void recover_data_blocks()
 {
   block_sector_t total_sectors = block_size(fs_device);
-  for (block_sector_t i = 4; i < total_sectors; i++)
+  for (block_sector_t i = 4; i < total_sectors - 1; i++)
   {
     char buffer[BLOCK_SECTOR_SIZE] = {0};
     block_read(fs_device, i, buffer);
     bool is_non_zero = false;
-    for (unsigned j = 0; j < BLOCK_SECTOR_SIZE; j++)
+    for (int j = 0; j < BLOCK_SECTOR_SIZE; j++)
     {
       if (buffer[j] != 0)
       {
@@ -452,9 +478,10 @@ static void recover_data_blocks()
         break;
       }
     }
+
     if (is_non_zero)
     {
-      char filename[25];
+      char filename[NAME_MAX];
       snprintf(filename, sizeof(filename), "recovered1-%d.txt", i);
       FILE *fp = fopen(filename, "w");
       if (fp != NULL)
@@ -464,6 +491,7 @@ static void recover_data_blocks()
         {
           data_size++;
         }
+
         fwrite(buffer, 1, data_size, fp);
         fclose(fp);
       }
@@ -471,45 +499,58 @@ static void recover_data_blocks()
   }
 }
 
-#define MAX_FILENAME_LENGTH 50
-
 static void find_hidden_data_in_files()
 {
   struct dir *dir = dir_open_root();
   struct dir_entry e;
 
-  while (dir_readdir(dir, e.name))
+  while (true)
   {
-    struct inode *inode = inode_open(e.inode_sector);
+    block_sector_t inode_file = dir_readdir_inode(dir, e.name);
+    if (inode_file == -1)
+    {
+      break;
+    }
+    struct inode *inode = inode_open(inode_file);
+
     if (inode == NULL || inode_is_directory(inode) || inode_is_removed(inode))
     {
       continue;
     }
+    block_sector_t sector = inode->sector;
+    struct inode_disk *buffer = malloc(BLOCK_SECTOR_SIZE);
+    buffer_cache_read(sector, buffer);
 
-    off_t file_size = inode_length(inode);
-    off_t last_block_size = file_size % BLOCK_SECTOR_SIZE;
-    if (last_block_size > 0 && last_block_size < BLOCK_SECTOR_SIZE)
+    if ((buffer->magic == INODE_MAGIC) && (buffer->length % BLOCK_SECTOR_SIZE != 0))
     {
-      char filename[MAX_FILENAME_LENGTH];
-      snprintf(filename, sizeof(filename), "recovered2-%s.txt", e.name);
-      char buffer[BLOCK_SECTOR_SIZE];
-      block_sector_t last_block_sector = bytes_to_sectors(file_size - 1);
-      block_read(fs_device, last_block_sector, buffer);
 
+      block_sector_t *data_sectors = get_inode_data_sectors(inode);
+      block_sector_t last_block = 0;
+      size_t sectors = bytes_to_sectors(inode_length(inode));
+      last_block = data_sectors[sectors - 1];
+
+      int modulo = fsutil_size(e.name) % BLOCK_SECTOR_SIZE;
+      int left = BLOCK_SECTOR_SIZE - modulo;
+      char *block = malloc(sizeof(char) * BLOCK_SECTOR_SIZE);
+      char *recovered = malloc(sizeof(char) * BLOCK_SECTOR_SIZE);
+      buffer_cache_read(last_block, block);
+      memcpy(recovered, block + modulo, left);
+
+      char filename[NAME_MAX];
+      snprintf(filename, sizeof(filename), "recovered2-%s.txt", e.name);
       FILE *fp = fopen(filename, "w");
       if (fp != NULL)
       {
-        for (int i = 0; i < last_block_size; ++i)
+        for (int i = 0; i < BLOCK_SECTOR_SIZE; i++)
         {
-          if (buffer[i] != '\0')
+          if (recovered[i] != '\0')
           {
-            fputc(buffer[i], fp);
+            fputc(recovered[i], fp);
           }
         }
+        fclose(fp);
       }
-      fclose(fp);
     }
-    inode_close(inode);
   }
   dir_close(dir);
 }
