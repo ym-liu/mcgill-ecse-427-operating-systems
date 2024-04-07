@@ -336,7 +336,6 @@ int defragment()
   for (int i = 0; i < buffer_index; i++)
   {
     fsutil_rm(name_buffer + (NAME_MAX + 1) * i);
-    printf("AFTER REMOVE: %i\n\n", num_free_sectors());
   }
 
   // copy files contiguously into disk
@@ -356,11 +355,9 @@ int defragment()
 
     // create file
     fsutil_create(name, size_buffer[i]);
-    printf("AFTER CREATE: %i\n", num_free_sectors());
 
     // write file
     fsutil_write(name, data, size_buffer[i]);
-    printf("AFTER WRITE: %i\n\n", num_free_sectors());
 
     // free mallocs
     free(name);
