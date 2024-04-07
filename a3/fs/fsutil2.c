@@ -264,6 +264,111 @@ char *read_file_into_memory(const char *filename)
 
 int defragment()
 {
+  // printf("\ncreate buffers...\n");
+  // create buffer name_buffer for file names (fname in fsutil_create(fname, isize))
+  char *name_buffer = (char *)malloc((NAME_MAX + 1) * MAX_FILES_IN_DIRECTORY + 1);
+  if (!name_buffer)
+  {
+    return handle_error(NO_MEM_SPACE);
+  }
+
+  // create buffer size_buffer for file sizes (isize in fsutil_create(fname, isize))
+  unsigned int size_buffer[MAX_FILES_IN_DIRECTORY];
+
+  // create buffer write_buffer for file data (buffer in fsutil_write(file_name, buffer, size))
+  char *write_buffer = (char *)malloc(1024 * 1024 * 8 + 1); // blank.dsk has size 1MB
+  if (!write_buffer)
+  {
+    free(name_buffer);
+    return handle_error(NO_MEM_SPACE);
+  }
+
+  // read files into buffers
+  // printf("\nread files into buffers...\n");
+  int buffer_index = 0;
+  struct dir *dir = dir_open_root();
+  struct dir_entry e;
+  while (dir_readdir(dir, e.name))
+  {
+    // open inode of directory entry
+    struct inode *inode = inode_open(e.inode_sector);
+
+    // if valid inode,
+    if (inode != NULL && !inode_is_directory(inode) && !inode_is_removed(inode))
+    {
+      // read name into name_buffer
+      strcpy(name_buffer + (NAME_MAX + 1) * buffer_index, e.name);
+
+      // read size into size_buffer
+      unsigned int file_size = fsutil_size(e.name);
+      size_buffer[buffer_index] = file_size;
+
+      // read data into write_buffer
+      char *file_content = (char *)malloc(1024 * 1024);
+      fsutil_seek(e.name, 0);
+      fsutil_read(e.name, file_content, file_size);
+      strcat(write_buffer, file_content);
+      free(file_content);
+
+      // increment buffer index
+      buffer_index++;
+    }
+
+    // close inode of directory entry
+    inode_close(inode);
+  }
+  dir_close(dir);
+
+  /*for (int i = 0; i < buffer_index; i++)
+  {
+    printf("-------------------- %s --------------------\n", name_buffer + (NAME_MAX + 1) * i);
+
+    int data_start = 0;
+    for (int j = 0; j < i; j++)
+    {
+      data_start += size_buffer[j] - 1;
+    }
+    printf("%.*s\n\n", size_buffer[i] - 1, write_buffer + data_start);
+  }*/
+
+  // remove files from disk
+  // printf("\nremove files from disk...\n");
+  for (int i = 0; i < buffer_index; i++)
+  {
+    fsutil_rm(name_buffer + (NAME_MAX + 1) * i);
+  }
+
+  // copy files contiguously into disk
+  // printf("\ncopy files contiguously into disk...\n");
+  for (int i = 0; i < buffer_index; i++)
+  {
+    char *name = (char *)malloc(sizeof(char) * (NAME_MAX + 1));
+    strcpy(name, name_buffer + (NAME_MAX + 1) * i);
+
+    char *data = (char *)malloc(1024 * 1024 * 8);
+    int data_start = 0;
+    for (int j = 0; j < i; j++)
+    {
+      data_start += size_buffer[j] - 1;
+    }
+    memcpy(data, write_buffer + data_start, size_buffer[i] - 1);
+
+    // create file
+    fsutil_create(name, size_buffer[i]);
+
+    // write file
+    fsutil_write(name, data, size_buffer[i]);
+
+    // free mallocs
+    free(name);
+    free(data);
+  }
+
+  // free mallocs and return error code
+  // printf("\nreturn...\n");
+  free(name_buffer);
+  free(write_buffer);
+  return 0;
 }
 
 static void recover_deleted_files();
