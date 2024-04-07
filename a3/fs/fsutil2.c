@@ -267,6 +267,10 @@ int defragment()
   // printf("\ncreate buffers...\n");
   // create buffer name_buffer for file names (fname in fsutil_create(fname, isize))
   char *name_buffer = (char *)malloc((NAME_MAX + 1) * MAX_FILES_IN_DIRECTORY + 1);
+  if (!name_buffer)
+  {
+    return handle_error(NO_MEM_SPACE);
+  }
 
   // create buffer size_buffer for file sizes (isize in fsutil_create(fname, isize))
   unsigned int size_buffer[MAX_FILES_IN_DIRECTORY];
@@ -332,6 +336,7 @@ int defragment()
   for (int i = 0; i < buffer_index; i++)
   {
     fsutil_rm(name_buffer + (NAME_MAX + 1) * i);
+    printf("AFTER REMOVE: %i\n\n", num_free_sectors());
   }
 
   // copy files contiguously into disk
@@ -347,16 +352,15 @@ int defragment()
     {
       data_start += size_buffer[j] - 1;
     }
-    strncpy(data, write_buffer + data_start, size_buffer[i] - 1);
-
-    // printf("-------------------- %s --------------------\n", name);
-    // printf("%s\n\n", data);
+    memcpy(data, write_buffer + data_start, size_buffer[i] - 1);
 
     // create file
     fsutil_create(name, size_buffer[i]);
+    printf("AFTER CREATE: %i\n", num_free_sectors());
 
     // write file
     fsutil_write(name, data, size_buffer[i]);
+    printf("AFTER WRITE: %i\n\n", num_free_sectors());
 
     // free mallocs
     free(name);
@@ -367,6 +371,7 @@ int defragment()
   // printf("\nreturn...\n");
   free(name_buffer);
   free(write_buffer);
+  printf("BEFORE RETURN: %i\n\n", num_free_sectors());
   return 0;
 }
 
